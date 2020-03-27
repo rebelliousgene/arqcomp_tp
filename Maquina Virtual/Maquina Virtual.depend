@@ -1,0 +1,6 @@
+# depslib dependency file v1.0
+1585267957 source:c:\users\franc\documents\github\arqcomp_tp\maquina virtual\main.c
+	<stdio.h>
+	<stdlib.h>
+	<ctype.h>
+
