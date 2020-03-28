@@ -54,31 +54,13 @@ int main(int arge, char *arg[])
             if (i == 1)
                 strcpy(url, arg[i]);
             else
-                if (strcmp(arg[i], "-d"))
+                if (strcmp(arg[i], "-d") == 0)
                     flag = 1;
         }
-
-        printf("\nURL = %s", url);
-        printf("\nFLAG = %d\n\n", flag);
         CargarImagen(url, flag);
     }
-    /*FILE *imgFile = fopen("imagenes\\imagen3.txt", "wb");
 
-    REG[DS] = 24; REG[ES] = 1000; REG[IP] = 0;
-
-    RAM[ 0] = 0x00010100;RAM[ 1] = 0x0000000E;RAM[ 2] = 0x000003E9;
-    RAM[ 3] = 0x00010100;RAM[ 4] = 0x0000000B;RAM[ 5] = 0x00000064;
-    RAM[ 6] = 0x00020101;RAM[ 7] = 0x0000000E;RAM[ 8] = 0x0000000B;
-    RAM[ 9] = 0x00010201;RAM[10] = 0x20000001;RAM[11] = 0x0000000E;
-    RAM[12] = 0x00010100;RAM[13] = 0x0000000A;RAM[14] = 0x00001101;
-    RAM[15] = 0x00010100;RAM[16] = 0x0000000D;RAM[17] = 0x00000001;
-    RAM[18] = 0x00010100;RAM[19] = 0x0000000C;RAM[20] = 0x00000001;
-    RAM[21] = 0x00810000;RAM[22] = 0x00000002;RAM[23] = 0x00000000;
-
-    fwrite(REG, sizeof(int), 16, imgFile);
-    fwrite(RAM, sizeof(int), 2000, imgFile);
-    fclose(imgFile);*/
-    printf("\n\nEjecucion terminada");
+    printf("_");
     getch();
     return 0;
 }
@@ -385,6 +367,24 @@ void func_JNN(double *arg1, double arg2)
 {
     printf("JNN");
 }
+char *getNombreDelRegistro(int i)
+{
+    switch (i)
+    {
+        case 2: return "DS";
+        case 3: return "ES";
+        case 4: return "IP";
+        case 8: return "AC";
+        case 9: return "CC";
+        case 10: return "AX";
+        case 11: return "BX";
+        case 12: return "CX";
+        case 13: return "DX";
+        case 14: return "EX";
+        case 15: return "FX";
+    }
+    return '\0';
+}
 void func_SYS(double *arg1, double arg2)
 {
     int conf = REG[0xa];
@@ -393,57 +393,117 @@ void func_SYS(double *arg1, double arg2)
     switch ((int)(*arg1))
     {
         case 1://READ
+            {
+                int DX = REG[0xd];
+                if (DX < REG[DS])
+                    DX+=REG[DS];
+
+                if ((conf & 0xf000) == 0x0000)
+                    prompt = 1;
+
+                if ((conf & 0x0f00) == 0x0100)
+                { // LEE STRING
+                    char cadena[50];
+                    if (prompt)
+                    {
+                        printf("[%08d]: ", (REG[0xd]));
+                    }
+                    fflush(stdin);
+                    gets(cadena);
+                    for (int i = 0; i < strlen(cadena); i++)
+                    {
+                        RAM[DX + i] = (int)cadena[i];
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < REG[0xc]; i++)
+                        {
+                        if (prompt)
+                        {
+                            printf("[%08d]: ", (REG[0xd] + i));
+                        }
+                        if ((conf & 0x0008) == 0x0008)
+                            scanf("%x", &RAM[DX + i]);
+                        if ((conf & 0x0004) == 0x0004)
+                            scanf("%o", &RAM[DX + i]);
+                        if ((conf & 0x0001) == 0x0001)
+                            scanf("%d", &RAM[DX + i]);
+
+                        if (endline)
+                            printf("\n");
+                    }
+                }
+
+            }
         break;
         case 2://WRITE
-            /*REG[0xa] = 0x0010;
-            conf = REG[0xa];
-            REG[0xd] = REG[DS];
-            REG[0xc] = 4;
-
-            RAM[REG[0xd]] = (int)('H');
-            RAM[REG[0xd]+1] = (int)('o');
-            RAM[REG[0xd]+2] = (int)('l');
-            RAM[REG[0xd]+3] = (int)('a');
-            RAM[REG[0xd]+4] = (int)('\0');*/
-
-            //conf = 0x0000;
-            //conf |= 0x0100;
-            conf = 0x0001;
-            int DX = REG[0xd];
-            if (DX < REG[DS])
-                DX+=REG[DS];
-
-
-            if ((conf & 0xf000) == 0x0000)
-                prompt = 1;
-
-            if ((conf & 0x0f00) == 0x0000)
-                endline = 1;
-
-            if ((conf & 0x00f0) == 0x0010)
-                caracter = 1;
-
-            for (int i = 0; i < REG[0xc]; i++)
             {
-                if (prompt && (i == 0 || endline))
-                    printf("[%08x]: ", (REG[0xd] + i));
+                int DX = REG[0xd];
+                if (DX < REG[DS])
+                    DX+=REG[DS];
 
-                if (caracter)
-                    printf("%c", RAM[DX + i]);
+                if ((conf & 0xf000) == 0x0000)
+                    prompt = 1;
 
-                if ((conf & 0x0008) == 0x0008)
-                    printf(" %%%x", RAM[DX + i]);
-                if ((conf & 0x0004) == 0x0004)
-                    printf(" @%o", RAM[DX + i]);
-                if ((conf & 0x0001) == 0x0001)
-                    printf(" #%d", RAM[DX + i]);
+                if ((conf & 0x0f00) == 0x0000)
+                    endline = 1;
 
-                if (endline)
-                    printf("\n");
+                if ((conf & 0x00f0) == 0x0010)
+                    caracter = 1;
+
+                for (int i = 0; i < REG[0xc]; i++)
+                {
+                    if (prompt && (i == 0 || endline))
+                        printf("[%08d]: ", (REG[0xd] + i));
+
+                    if (caracter)
+                        printf("%c", RAM[DX + i]);
+
+                    if ((conf & 0x0008) == 0x0008)
+                        printf("%%%x", RAM[DX + i]);
+                    if ((conf & 0x0004) == 0x0004)
+                        printf("@%o", RAM[DX + i]);
+                    if ((conf & 0x0001) == 0x0001)
+                        printf("%d", RAM[DX + i]);
+
+                    if (endline)
+                        printf("\n");
+                }
             }
-
         break;
         case 3://DUMP
+            {
+                if ((conf & 0xf000) == 0x0000)
+                    prompt = 1;
+
+                if ((conf & 0x0f00) == 0x0000)
+                    endline = 1;
+
+                if ((conf & 0x00f0) == 0x0010)
+                    caracter = 1;
+
+                for (int i = 0; i < 16; i++)
+                {
+                    if ((i > 1 && i < 5)||(i > 7))
+                    {
+                        if (prompt && (i == 0 || endline))
+                            printf("[%s]: ", getNombreDelRegistro(i));
+
+                        if (caracter)
+                            printf("%c", REG[i]);
+
+                        if ((conf & 0x0008) == 0x0008)
+                            printf("%%%04x", REG[i]);
+                        if ((conf & 0x0004) == 0x0004)
+                            printf("@%04o", REG[i]);
+                        if ((conf & 0x0001) == 0x0001)
+                            printf("%04d", REG[i]);
+                        if (endline)
+                            printf("\n");
+                    }
+                }
+            }
         break;
     }
 }
