@@ -1,0 +1,6 @@
+# depslib dependency file v1.0
+1585426923 source:c:\users\usuario\documents\facultad\arquitectura de computadoras\traductor\main.c
+	<stdio.h>
+	<string.h>
+	<ctype.h>
+
