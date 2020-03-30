@@ -2,54 +2,69 @@
 #include <stdlib.h>
 #include <ctype.h>
 
-const int DS = 2;
-const int ES = 3;
-const int IP = 4;
+#define DS 2
+#define ES 3
+#define IP 4
+#define AC 8
+#define CC 9
+#define AX 10
+#define BX 11
+#define CX 12
+#define DX 13
+#define EX 14
+#define FX 15
 
-int RAM[2000];
-int REG[16];
+typedef struct
+{
+    int RAM[2000];
+    int REG[16];
+}TMemoria;
 
-typedef void (*T_FUNC)(double *arg1, double arg2);
+typedef void (*T_FUNC)(TMemoria *memoria, int *arg1, int arg2);
 
-void func_MOV(double *arg1, double arg2);
-void func_ADD(double *arg1, double arg2);
-void func_SUB(double *arg1, double arg2);
-void func_MUL(double *arg1, double arg2);
-void func_DIV(double *arg1, double arg2);
-void func_MOD(double *arg1, double arg2);
-void func_CMP(double *arg1, double arg2);
-void func_SWAP(double *arg1, double arg2);
-void func_RND(double *arg1, double arg2);
-void func_AND(double *arg1, double arg2);
-void func_OR(double *arg1, double arg2);
-void func_NOT(double *arg1, double arg2);
-void func_XOR(double *arg1, double arg2);
-void func_SHL(double *arg1, double arg2);
-void func_SHR(double *arg1, double arg2);
-void func_JMP(double *arg1, double arg2);
-void func_JE(double *arg1, double arg2);
-void func_JG(double *arg1, double arg2);
-void func_JL(double *arg1, double arg2);
-void func_JZ(double *arg1, double arg2);
-void func_JP(double *arg1, double arg2);
-void func_JN(double *arg1, double arg2);
-void func_JNZ(double *arg1, double arg2);
-void func_JNP(double *arg1, double arg2);
-void func_JNN(double *arg1, double arg2);
-void func_SYS(double *arg1, double arg2);
-void func_STOP(double *arg1, double arg2);
+void func_MOV(TMemoria *memoria, int *arg1, int arg2);
+void func_ADD(TMemoria *memoria, int *arg1, int arg2);
+void func_SUB(TMemoria *memoria, int *arg1, int arg2);
+void func_MUL(TMemoria *memoria, int *arg1, int arg2);
+void func_DIV(TMemoria *memoria, int *arg1, int arg2);
+void func_MOD(TMemoria *memoria, int *arg1, int arg2);
+void func_CMP(TMemoria *memoria, int *arg1, int arg2);
+void func_SWAP(TMemoria *memoria, int *arg1, int arg2);
+void func_RND(TMemoria *memoria, int *arg1, int arg2);
+void func_AND(TMemoria *memoria, int *arg1, int arg2);
+void func_OR(TMemoria *memoria, int *arg1, int arg2);
+void func_NOT(TMemoria *memoria, int *arg1, int arg2);
+void func_XOR(TMemoria *memoria, int *arg1, int arg2);
+void func_SHL(TMemoria *memoria, int *arg1, int arg2);
+void func_SHR(TMemoria *memoria, int *arg1, int arg2);
+void func_JMP(TMemoria *memoria, int *arg1, int arg2);
+void func_JE(TMemoria *memoria, int *arg1, int arg2);
+void func_JG(TMemoria *memoria, int *arg1, int arg2);
+void func_JL(TMemoria *memoria, int *arg1, int arg2);
+void func_JZ(TMemoria *memoria, int *arg1, int arg2);
+void func_JP(TMemoria *memoria, int *arg1, int arg2);
+void func_JN(TMemoria *memoria, int *arg1, int arg2);
+void func_JNZ(TMemoria *memoria, int *arg1, int arg2);
+void func_JNP(TMemoria *memoria, int *arg1, int arg2);
+void func_JNN(TMemoria *memoria, int *arg1, int arg2);
+void func_SYS(TMemoria *memoria, int *arg1, int arg2);
+void func_STOP(TMemoria *memoria, int *arg1, int arg2);
 
-void CargarImagen(char *url, int flag);
+int CargarImagen(TMemoria *memoria, char *url);
 void CargarMnemonicos(T_FUNC *mnemonicos);
+void EjecutarMemoria(TMemoria *memoria);
+
+void MostrarCodigoAssembler(TMemoria memoria);
 
 int main(int arge, char *arg[])
 {
     char url[256];
     int flag = 0;
+    TMemoria memoria;
 
     if (arge > 1)
     {
-        for (int i = 0; i < arge; i++)
+        for (int i = 1; i < arge; i++)
         {
             if (i == 1)
                 strcpy(url, arg[i]);
@@ -57,7 +72,16 @@ int main(int arge, char *arg[])
                 if (strcmp(arg[i], "-d") == 0)
                     flag = 1;
         }
-        CargarImagen(url, flag);
+
+        if (CargarImagen(&memoria, url))
+        {
+            if (flag)
+            {
+                MostrarCodigoAssembler(memoria);
+            }
+
+            EjecutarMemoria(&memoria);
+        }
     }
 
     printf("_");
@@ -65,16 +89,62 @@ int main(int arge, char *arg[])
     return 0;
 }
 
-void CargarRegistroYRAM(FILE *file)
-{
-    fread(REG, sizeof(int), 16, file);
-    fread(RAM, sizeof(int), 2000, file);
-}
-int buscarMnemonico(int celda)
+int getMnemonico(int celda)
 {
     return celda >> 16;
 }
-void tipoOperandos(int celda, int *tipo, int *operando)
+
+void ObtenerInstruccion(TMemoria memoria, int i, int *codInstruccion, int *codOperando1, int *codOperando2)
+{
+    (*codInstruccion) = memoria.RAM[i];
+    (*codOperando1) = memoria.RAM[i+1];
+    (*codOperando2) = memoria.RAM[i+2];
+}
+//MOSTRAR CODIGO ASSEMBLER
+void MostrarArgumento(int tOper, int oper)
+{
+    if (tOper == 0x00)
+        printf(" %d", oper);
+    else
+        if (tOper == 0x01)
+            printf(" %xX", oper&0x0000000f);
+        else
+            printf(" [%s:%x]", ((oper&0xf0000000) == 0x20000000)? "DS":"ES",oper&0x0fffffff);
+}
+void MostrarCodigoAssembler(TMemoria memoria)
+{
+    char *StringMnemonicos[256];
+    int i, oper1, oper2;
+
+    CargarStringMnemonicos(StringMnemonicos);
+
+    for (i = 0; i < memoria.REG[DS]; i+=3)
+    {
+        ObtenerInstruccion(memoria, i, &memoria.RAM[i], &oper1, &oper2);
+
+        printf("[%08x]: %s", i, StringMnemonicos[getMnemonico(memoria.RAM[i])]);
+        MostrarArgumento((memoria.RAM[i]&0x0000ff00) >> 8, oper1);
+        printf(",");
+        MostrarArgumento((memoria.RAM[i]&0x000000ff), oper2);
+        printf("\n");
+    }
+    printf("\n");
+}
+//
+int CargarImagen(TMemoria *memoria, char *url)
+{
+    FILE *imgFile = fopen(url, "rb");
+    if (imgFile)
+    {
+        fread(memoria->REG, sizeof(int), 16, imgFile);
+        fread(memoria->RAM, sizeof(int), 2000, imgFile);
+
+        fclose(imgFile);
+        return 1;
+    }
+    return 0;
+}
+void tipoOperandos(TMemoria memoria, int celda, int *tipo, int *operando)
 {
     switch (celda)
     {
@@ -89,117 +159,68 @@ void tipoOperandos(int celda, int *tipo, int *operando)
             (*tipo) = 2;
             if (((*operando)&0xf0000000) == 0x20000000)
             {
-                (*operando) = REG[DS] + ((*operando)&0x0fffffff);
+                (*operando) = memoria.REG[DS] + ((*operando)&0x0fffffff);
             }
             else
             {
-                (*operando) = REG[ES] + ((*operando)&0x0fffffff);
+                (*operando) = memoria.REG[ES] + ((*operando)&0x0fffffff);
             }
         break;
     }
 }
-
-void ObtenerInstruccion(int i, int *codInstruccion, int *codOperando1, int *codOperando2)
+void ObtenerOperandos(TMemoria memoria, int Instancia, int *tOper1, int *Oper1, int *tOper2, int *Oper2)
 {
-    (*codInstruccion) = RAM[i];
-    (*codOperando1) = RAM[i+1];
-    (*codOperando2) = RAM[i+2];
+    int inst1 = (Instancia&0x0000ff00) >> 8, inst2 = Instancia&0x000000ff;
 
-    //printf("\n%08x %08x %08x", *codInstruccion, *codOperando1, *codOperando2);
-}
-void ObtenerOperandos(int Inst, int *tOper1, int *Oper1, int *tOper2, int *Oper2)
-{
-    tipoOperandos((Inst&0x0000ff00) >> 8, tOper1, Oper1);
-    tipoOperandos(Inst&0x000000ff, tOper2, Oper2);
+    tipoOperandos(memoria, inst1, tOper1, Oper1);
+    tipoOperandos(memoria, inst2, tOper2, Oper2);
 }
 void InterpretarInstruccion(int *tInst, int codInst)
 {
-    (*tInst) = buscarMnemonico(codInst);
+    (*tInst) = getMnemonico(codInst);
 }
-void EjecutarInstruccion(T_FUNC* mnemonicos, int tMnemonico, int tOper1, int Oper1, int tOper2, int Oper2)
+void EjecutarInstruccion(TMemoria *memoria, T_FUNC* mnemonicos, int tMnemonico, int tOper1, int Oper1, int tOper2, int Oper2)
 {
-    double arg1, arg2;
-    int auxIP = REG[IP];
+    int arg1, arg2, auxIP = memoria->REG[IP];
     if (tOper1 == 0)
         arg1 = Oper1;
     else
         if (tOper1 == 1)
-            arg1 = REG[Oper1];
+            arg1 = memoria->REG[Oper1];
         else
-            arg1 = RAM[Oper1];
+            arg1 = memoria->RAM[Oper1];
 
     if (tOper2 == 0)
         arg2 = Oper2;
     else
         if (tOper2 == 1)
-            arg2 = REG[Oper2];
+            arg2 = memoria->REG[Oper2];
         else
-            arg2 = RAM[Oper2];
+            arg2 = memoria->RAM[Oper2];
 
-    mnemonicos[tMnemonico](&arg1, arg2);
+    mnemonicos[tMnemonico](memoria, &arg1, arg2);
 
-    if (auxIP == REG[IP])
-        REG[IP]+=3;
+    if (auxIP == memoria->REG[IP])
+        memoria->REG[IP]+=3;
 
     if (tOper1 == 1)
-        REG[Oper1] = arg1;
+        memoria->REG[Oper1] = arg1;
     else
-        RAM[Oper1] = arg1;
+        memoria->RAM[Oper1] = arg1;
 }
-void MostrarArgumento(int tOper, int oper)
+void EjecutarMemoria(TMemoria *memoria)
 {
-    if (tOper == 0x00)
-        printf(" %d", oper);
-    else
-        if (tOper == 0x01)
-            printf(" %xX", oper&0x0000000f);
-        else
-            printf(" [%s:%x]", ((oper&0xf0000000) == 0x20000000)? "DS":"ES",oper&0x0fffffff);
-}
-void MostrarRAM(char *StringMemonicos[])
-{
-    int i, oper1, oper2;
-    for (i = 0; i < REG[DS]; i+=3)
+    int tipoMnemonico, codInstruccion, tipoOperando1, tipoOperando2, codOperando1, codOperando2;
+    T_FUNC mnemonicos[256];
+
+    CargarMnemonicos (mnemonicos);
+
+    while (memoria->REG[IP]>=0 && memoria->REG[IP] < memoria->REG[DS])
     {
-        ObtenerInstruccion(i, &RAM[i], &oper1, &oper2);
-
-        printf("[%08x]: %s", i, StringMemonicos[buscarMnemonico(RAM[i])]);
-        MostrarArgumento((RAM[i]&0x0000ff00) >> 8, oper1);
-        printf(",");
-        MostrarArgumento((RAM[i]&0x000000ff), oper2);
-        printf("\n");
-    }
-    printf("\n");
-}
-void CargarImagen(char *url, int flag)
-{
-    //flag =1;
-    //FILE *imgFile = fopen("imagenes\\imagen3.txt", "rb");
-    FILE *imgFile = fopen(url, "rb");
-    if (imgFile)
-    {
-        int tipoMnemonico, codInstruccion, tipoOperando1, tipoOperando2, codOperando1, codOperando2;
-        T_FUNC mnemonicos[256];
-        char *StringMmemonicos[256];
-
-        CargarMnemonicos (mnemonicos);
-        CargarRegistroYRAM(imgFile);
-        fclose(imgFile);
-
-        if (flag)
-        {
-            CargarStringMnemonicos(StringMmemonicos);
-            MostrarRAM(StringMmemonicos);
-        }
-
-        while (REG[IP]>=0 && REG[IP] < REG[DS])
-        {
-            ObtenerInstruccion(REG[IP], &codInstruccion, &codOperando1, &codOperando2);
-            ObtenerOperandos(codInstruccion, &tipoOperando1, &codOperando1, &tipoOperando2, &codOperando2);
-            InterpretarInstruccion(&tipoMnemonico, codInstruccion);
-            EjecutarInstruccion(mnemonicos, tipoMnemonico, tipoOperando1, codOperando1, tipoOperando2, codOperando2);
-        }
-
+        ObtenerInstruccion(*memoria, memoria->REG[IP], &codInstruccion, &codOperando1, &codOperando2);
+        ObtenerOperandos(*memoria, codInstruccion, &tipoOperando1, &codOperando1, &tipoOperando2, &codOperando2);
+        InterpretarInstruccion(&tipoMnemonico, codInstruccion);
+        EjecutarInstruccion(memoria, mnemonicos, tipoMnemonico, tipoOperando1, codOperando1, tipoOperando2, codOperando2);
     }
 }
 
@@ -267,103 +288,103 @@ void CargarMnemonicos(T_FUNC *mnemonicos)
     mnemonicos[143] = &func_STOP;
 }
 
-void func_MOV(double *arg1, double arg2)
+void func_MOV(TMemoria *memoria, int *arg1, int arg2)
 {
     (*arg1) = arg2;
 }
-void func_ADD(double *arg1, double arg2)
+void func_ADD(TMemoria *memoria, int *arg1, int arg2)
 {
     (*arg1)+=arg2;
 }
-void func_SUB(double *arg1, double arg2)
+void func_SUB(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("SUB");
 }
-void func_MUL(double *arg1, double arg2)
+void func_MUL(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("MUL");
 }
-void func_DIV(double *arg1, double arg2)
+void func_DIV(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("DIV");
 }
-void func_MOD(double *arg1, double arg2)
+void func_MOD(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("MOD");
 }
-void func_CMP(double *arg1, double arg2)
+void func_CMP(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("CMP");
 }
-void func_SWAP(double *arg1, double arg2)
+void func_SWAP(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("SWAP");
 }
-void func_RND(double *arg1, double arg2)
+void func_RND(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("RND");
 }
-void func_AND(double *arg1, double arg2)
+void func_AND(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("AND");
 }
-void func_OR(double *arg1, double arg2)
+void func_OR(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("OR");
 }
-void func_NOT(double *arg1, double arg2)
+void func_NOT(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("NOT");
 }
-void func_XOR(double *arg1, double arg2)
+void func_XOR(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("XOR");
 }
-void func_SHL(double *arg1, double arg2)
+void func_SHL(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("SHL");
 }
-void func_SHR(double *arg1, double arg2)
+void func_SHR(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("SHR");
 }
-void func_JMP(double *arg1, double arg2)
+void func_JMP(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("JMP");
 }
-void func_JE(double *arg1, double arg2)
+void func_JE(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("JE");
 }
-void func_JG(double *arg1, double arg2)
+void func_JG(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("JG");
 }
-void func_JL(double *arg1, double arg2)
+void func_JL(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("JL");
 }
-void func_JZ(double *arg1, double arg2)
+void func_JZ(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("JZ");
 }
-void func_JP(double *arg1, double arg2)
+void func_JP(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("JP");
 }
-void func_JN(double *arg1, double arg2)
+void func_JN(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("JN");
 }
-void func_JNZ(double *arg1, double arg2)
+void func_JNZ(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("JNZ");
 }
-void func_JNP(double *arg1, double arg2)
+void func_JNP(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("JNP");
 }
-void func_JNN(double *arg1, double arg2)
+void func_JNN(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("JNN");
 }
@@ -385,50 +406,49 @@ char *getNombreDelRegistro(int i)
     }
     return '\0';
 }
-void func_SYS(double *arg1, double arg2)
+void func_SYS(TMemoria *memoria, int *arg1, int arg2)
 {
-    int conf = REG[0xa];
-    int prompt = 0, endline = 0, caracter = 0;
-    //printf("\n%d", RAM[RAM[DS]+1]);
+    int configuracion = memoria->REG[AX], prompt = 0, endline = 0, caracter = 0, direccion;
+
     switch ((int)(*arg1))
     {
         case 1://READ
             {
-                int DX = REG[0xd];
-                if (DX < REG[DS])
-                    DX+=REG[DS];
+                direccion = memoria->REG[DX];
+                if (direccion < memoria->REG[DS])
+                    direccion += memoria->REG[DS];
 
-                if ((conf & 0xf000) == 0x0000)
+                if ((configuracion & 0xf000) == 0x0000)
                     prompt = 1;
 
-                if ((conf & 0x0f00) == 0x0100)
+                if ((configuracion & 0x0f00) == 0x0100)
                 { // LEE STRING
                     char cadena[50];
                     if (prompt)
                     {
-                        printf("[%08d]: ", (REG[0xd]));
+                        printf("[%08d]: ", (memoria->REG[DX]));
                     }
                     fflush(stdin);
                     gets(cadena);
                     for (int i = 0; i < strlen(cadena); i++)
                     {
-                        RAM[DX + i] = (int)cadena[i];
+                        memoria->RAM[direccion + i] = (int)cadena[i];
                     }
                 }
                 else
                 {
-                    for (int i = 0; i < REG[0xc]; i++)
+                    for (int i = 0; i < memoria->REG[CX]; i++)
                         {
                         if (prompt)
                         {
-                            printf("[%08d]: ", (REG[0xd] + i));
+                            printf("[%08d]: ", (memoria->REG[DX] + i));
                         }
-                        if ((conf & 0x0008) == 0x0008)
-                            scanf("%x", &RAM[DX + i]);
-                        if ((conf & 0x0004) == 0x0004)
-                            scanf("%o", &RAM[DX + i]);
-                        if ((conf & 0x0001) == 0x0001)
-                            scanf("%d", &RAM[DX + i]);
+                        if ((configuracion & 0x0008) == 0x0008)
+                            scanf("%x", &memoria->RAM[direccion + i]);
+                        if ((configuracion & 0x0004) == 0x0004)
+                            scanf("%o", &memoria->RAM[direccion + i]);
+                        if ((configuracion & 0x0001) == 0x0001)
+                            scanf("%d", &memoria->RAM[direccion + i]);
 
                         if (endline)
                             printf("\n");
@@ -439,33 +459,33 @@ void func_SYS(double *arg1, double arg2)
         break;
         case 2://WRITE
             {
-                int DX = REG[0xd];
-                if (DX < REG[DS])
-                    DX+=REG[DS];
+                direccion = memoria->REG[DX];
+                if (direccion < memoria->REG[DS])
+                    direccion += memoria->REG[DS];
 
-                if ((conf & 0xf000) == 0x0000)
+                if ((configuracion & 0xf000) == 0x0000)
                     prompt = 1;
 
-                if ((conf & 0x0f00) == 0x0000)
+                if ((configuracion & 0x0f00) == 0x0000)
                     endline = 1;
 
-                if ((conf & 0x00f0) == 0x0010)
+                if ((configuracion & 0x00f0) == 0x0010)
                     caracter = 1;
 
-                for (int i = 0; i < REG[0xc]; i++)
+                for (int i = 0; i < memoria->REG[CX]; i++)
                 {
                     if (prompt && (i == 0 || endline))
-                        printf("[%08d]: ", (REG[0xd] + i));
+                        printf("[%08d]: ", (memoria->REG[DX] + i));
 
                     if (caracter)
-                        printf("%c", RAM[DX + i]);
+                        printf("%c", memoria->RAM[direccion + i]);
 
-                    if ((conf & 0x0008) == 0x0008)
-                        printf("%%%x", RAM[DX + i]);
-                    if ((conf & 0x0004) == 0x0004)
-                        printf("@%o", RAM[DX + i]);
-                    if ((conf & 0x0001) == 0x0001)
-                        printf("%d", RAM[DX + i]);
+                    if ((configuracion & 0x0008) == 0x0008)
+                        printf("%%%x", memoria->RAM[direccion + i]);
+                    if ((configuracion & 0x0004) == 0x0004)
+                        printf("@%o", memoria->RAM[direccion + i]);
+                    if ((configuracion & 0x0001) == 0x0001)
+                        printf("%d", memoria->RAM[direccion + i]);
 
                     if (endline)
                         printf("\n");
@@ -474,13 +494,13 @@ void func_SYS(double *arg1, double arg2)
         break;
         case 3://DUMP
             {
-                if ((conf & 0xf000) == 0x0000)
+                if ((configuracion & 0xf000) == 0x0000)
                     prompt = 1;
 
-                if ((conf & 0x0f00) == 0x0000)
+                if ((configuracion & 0x0f00) == 0x0000)
                     endline = 1;
 
-                if ((conf & 0x00f0) == 0x0010)
+                if ((configuracion & 0x00f0) == 0x0010)
                     caracter = 1;
 
                 for (int i = 0; i < 16; i++)
@@ -491,14 +511,14 @@ void func_SYS(double *arg1, double arg2)
                             printf("[%s]: ", getNombreDelRegistro(i));
 
                         if (caracter)
-                            printf("%c", REG[i]);
+                            printf("%c", memoria->REG[i]);
 
-                        if ((conf & 0x0008) == 0x0008)
-                            printf("%%%04x", REG[i]);
-                        if ((conf & 0x0004) == 0x0004)
-                            printf("@%04o", REG[i]);
-                        if ((conf & 0x0001) == 0x0001)
-                            printf("%04d", REG[i]);
+                        if ((configuracion & 0x0008) == 0x0008)
+                            printf("%%%04x", memoria->REG[i]);
+                        if ((configuracion & 0x0004) == 0x0004)
+                            printf("@%04o", memoria->REG[i]);
+                        if ((configuracion & 0x0001) == 0x0001)
+                            printf("%04d", memoria->REG[i]);
                         if (endline)
                             printf("\n");
                     }
@@ -507,7 +527,7 @@ void func_SYS(double *arg1, double arg2)
         break;
     }
 }
-void func_STOP(double *arg1, double arg2)
+void func_STOP(TMemoria *memoria, int *arg1, int arg2)
 {
     printf("STOP");
 }
