@@ -20,35 +20,35 @@ typedef struct
     int REG[16];
 }TMemoria;
 
-typedef void (*T_FUNC)(TMemoria *memoria, int *arg1, int arg2);
+typedef void (*T_FUNC)(TMemoria *memoria, int *arg1, int *arg2);
 
-void func_MOV(TMemoria *memoria, int *arg1, int arg2);
-void func_ADD(TMemoria *memoria, int *arg1, int arg2);
-void func_SUB(TMemoria *memoria, int *arg1, int arg2);
-void func_MUL(TMemoria *memoria, int *arg1, int arg2);
-void func_DIV(TMemoria *memoria, int *arg1, int arg2);
-void func_MOD(TMemoria *memoria, int *arg1, int arg2);
-void func_CMP(TMemoria *memoria, int *arg1, int arg2);
-void func_SWAP(TMemoria *memoria, int *arg1, int arg2);
-void func_RND(TMemoria *memoria, int *arg1, int arg2);
-void func_AND(TMemoria *memoria, int *arg1, int arg2);
-void func_OR(TMemoria *memoria, int *arg1, int arg2);
-void func_NOT(TMemoria *memoria, int *arg1, int arg2);
-void func_XOR(TMemoria *memoria, int *arg1, int arg2);
-void func_SHL(TMemoria *memoria, int *arg1, int arg2);
-void func_SHR(TMemoria *memoria, int *arg1, int arg2);
-void func_JMP(TMemoria *memoria, int *arg1, int arg2);
-void func_JE(TMemoria *memoria, int *arg1, int arg2);
-void func_JG(TMemoria *memoria, int *arg1, int arg2);
-void func_JL(TMemoria *memoria, int *arg1, int arg2);
-void func_JZ(TMemoria *memoria, int *arg1, int arg2);
-void func_JP(TMemoria *memoria, int *arg1, int arg2);
-void func_JN(TMemoria *memoria, int *arg1, int arg2);
-void func_JNZ(TMemoria *memoria, int *arg1, int arg2);
-void func_JNP(TMemoria *memoria, int *arg1, int arg2);
-void func_JNN(TMemoria *memoria, int *arg1, int arg2);
-void func_SYS(TMemoria *memoria, int *arg1, int arg2);
-void func_STOP(TMemoria *memoria, int *arg1, int arg2);
+void func_MOV(TMemoria *memoria, int *arg1, int *arg2);
+void func_ADD(TMemoria *memoria, int *arg1, int *arg2);
+void func_SUB(TMemoria *memoria, int *arg1, int *arg2);
+void func_MUL(TMemoria *memoria, int *arg1, int *arg2);
+void func_DIV(TMemoria *memoria, int *arg1, int *arg2);
+void func_MOD(TMemoria *memoria, int *arg1, int *arg2);
+void func_CMP(TMemoria *memoria, int *arg1, int *arg2);
+void func_SWAP(TMemoria *memoria, int *arg1, int *arg2);
+void func_RND(TMemoria *memoria, int *arg1, int *arg2);
+void func_AND(TMemoria *memoria, int *arg1, int *arg2);
+void func_OR(TMemoria *memoria, int *arg1, int *arg2);
+void func_NOT(TMemoria *memoria, int *arg1, int *arg2);
+void func_XOR(TMemoria *memoria, int *arg1, int *arg2);
+void func_SHL(TMemoria *memoria, int *arg1, int *arg2);
+void func_SHR(TMemoria *memoria, int *arg1, int *arg2);
+void func_JMP(TMemoria *memoria, int *arg1, int *arg2);
+void func_JE(TMemoria *memoria, int *arg1, int *arg2);
+void func_JG(TMemoria *memoria, int *arg1, int *arg2);
+void func_JL(TMemoria *memoria, int *arg1, int *arg2);
+void func_JZ(TMemoria *memoria, int *arg1, int *arg2);
+void func_JP(TMemoria *memoria, int *arg1, int *arg2);
+void func_JN(TMemoria *memoria, int *arg1, int *arg2);
+void func_JNZ(TMemoria *memoria, int *arg1, int *arg2);
+void func_JNP(TMemoria *memoria, int *arg1, int *arg2);
+void func_JNN(TMemoria *memoria, int *arg1, int *arg2);
+void func_SYS(TMemoria *memoria, int *arg1, int *arg2);
+void func_STOP(TMemoria *memoria, int *arg1, int *arg2);
 
 int CargarImagen(TMemoria *memoria, char *url);
 void CargarMnemonicos(T_FUNC *mnemonicos);
@@ -62,7 +62,7 @@ int main(int arge, char *arg[])
     int flag = 0;
     TMemoria memoria;
 
-    if (arge > 1)
+    //if (arge > 1)
     {
         for (int i = 1; i < arge; i++)
         {
@@ -73,7 +73,7 @@ int main(int arge, char *arg[])
                     flag = 1;
         }
 
-        if (CargarImagen(&memoria, url))
+        if (CargarImagen(&memoria, "Imagenes\\imagen4.txt"))//url))
         {
             if (flag)
             {
@@ -85,7 +85,6 @@ int main(int arge, char *arg[])
     }
 
     printf("_");
-    getch();
     return 0;
 }
 
@@ -179,6 +178,7 @@ void InterpretarInstruccion(int *tInst, int codInst)
 {
     (*tInst) = getMnemonico(codInst);
 }
+
 void EjecutarInstruccion(TMemoria *memoria, T_FUNC* mnemonicos, int tMnemonico, int tOper1, int Oper1, int tOper2, int Oper2)
 {
     int arg1, arg2, auxIP = memoria->REG[IP];
@@ -198,20 +198,25 @@ void EjecutarInstruccion(TMemoria *memoria, T_FUNC* mnemonicos, int tMnemonico, 
         else
             arg2 = memoria->RAM[Oper2];
 
-    mnemonicos[tMnemonico](memoria, &arg1, arg2);
+    mnemonicos[tMnemonico](memoria, &arg1, &arg2);
 
     if (auxIP == memoria->REG[IP])
         memoria->REG[IP]+=3;
 
     if (tOper1 == 1)
         memoria->REG[Oper1] = arg1;
-    else
+    if (tOper1 == 2)
         memoria->RAM[Oper1] = arg1;
+
+    if (tOper2 == 1)
+        memoria->REG[tOper2] = arg2;
+    if (tOper2 == 2)
+        memoria->RAM[tOper2] = arg2;
 }
 void EjecutarMemoria(TMemoria *memoria)
 {
     int tipoMnemonico, codInstruccion, tipoOperando1, tipoOperando2, codOperando1, codOperando2;
-    T_FUNC mnemonicos[256];
+    T_FUNC mnemonicos[150];
 
     CargarMnemonicos (mnemonicos);
 
@@ -288,103 +293,158 @@ void CargarMnemonicos(T_FUNC *mnemonicos)
     mnemonicos[143] = &func_STOP;
 }
 
-void func_MOV(TMemoria *memoria, int *arg1, int arg2)
+void ModificarCC(TMemoria *memoria, int num)
 {
-    (*arg1) = arg2;
+    if (num == 0)
+    {
+        memoria->REG[CC] |= 0x0001;
+    }
+    else
+    {
+        if (num < 0)
+        {
+            memoria->REG[CC] |= 0x1000;
+        }
+        else
+        {
+            memoria->REG[CC] = 0x0;
+        }
+    }
 }
-void func_ADD(TMemoria *memoria, int *arg1, int arg2)
+
+void func_MOV(TMemoria *memoria, int *arg1, int *arg2)
 {
-    (*arg1)+=arg2;
+    (*arg1) = (*arg2);
 }
-void func_SUB(TMemoria *memoria, int *arg1, int arg2)
+void func_ADD(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("SUB");
+    (*arg1)+=(*arg2);
+    ModificarCC(memoria, *arg1);
 }
-void func_MUL(TMemoria *memoria, int *arg1, int arg2)
+void func_SUB(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("MUL");
+    (*arg1)-=(*arg2);
+    ModificarCC(memoria, *arg1);
 }
-void func_DIV(TMemoria *memoria, int *arg1, int arg2)
+void func_MUL(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("DIV");
+    (*arg1)*=(*arg2);
+    ModificarCC(memoria, *arg1);
 }
-void func_MOD(TMemoria *memoria, int *arg1, int arg2)
+void func_DIV(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("MOD");
+    (*arg1)/=(*arg2);
+    ModificarCC(memoria, *arg1);
 }
-void func_CMP(TMemoria *memoria, int *arg1, int arg2)
+void func_MOD(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("CMP");
+    ModificarCC(memoria, (*arg1) / (*arg2));
+    (*arg1) %= (*arg2);
 }
-void func_SWAP(TMemoria *memoria, int *arg1, int arg2)
+void func_CMP(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("SWAP");
+    ModificarCC(memoria, (*arg1) - (*arg2));
 }
-void func_RND(TMemoria *memoria, int *arg1, int arg2)
+void func_SWAP(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("RND");
+    int aux = (*arg1);
+    (*arg1) = (*arg2);
+    (*arg2) = aux;
 }
-void func_AND(TMemoria *memoria, int *arg1, int arg2)
+void func_RND(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("AND");
+    srand(time(0));
+    (*arg1) = rand()%(*arg2);
 }
-void func_OR(TMemoria *memoria, int *arg1, int arg2)
+void func_AND(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("OR");
+    (*arg1) &= (*arg2);
+    ModificarCC(memoria, *arg1);
 }
-void func_NOT(TMemoria *memoria, int *arg1, int arg2)
+void func_OR(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("NOT");
+    (*arg1) |= (*arg2);
+    ModificarCC(memoria, *arg1);
 }
-void func_XOR(TMemoria *memoria, int *arg1, int arg2)
+void func_NOT(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("XOR");
+    (*arg1) = !(*arg1);
+    ModificarCC(memoria, *arg1);
 }
-void func_SHL(TMemoria *memoria, int *arg1, int arg2)
+void func_XOR(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("SHL");
+    (*arg1) = ((*arg1) == (*arg2))? 0 : 1;
+    ModificarCC(memoria, *arg1);
 }
-void func_SHR(TMemoria *memoria, int *arg1, int arg2)
+void func_SHL(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("SHR");
+    (*arg1) <<= (*arg2);
 }
-void func_JMP(TMemoria *memoria, int *arg1, int arg2)
+void func_SHR(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("JMP");
+    (*arg1) >>= (*arg2);
 }
-void func_JE(TMemoria *memoria, int *arg1, int arg2)
+void func_JMP(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("JE");
+    memoria->REG[IP] = (*arg1);
 }
-void func_JG(TMemoria *memoria, int *arg1, int arg2)
+void func_JE(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("JG");
+    if ((*arg1) == memoria->REG[AX])
+    {
+        memoria->REG[IP] = (*arg2);
+    }
 }
-void func_JL(TMemoria *memoria, int *arg1, int arg2)
+void func_JG(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("JL");
+    if ((*arg1) > memoria->REG[AX])
+    {
+        memoria->REG[IP] = (*arg2);
+    }
 }
-void func_JZ(TMemoria *memoria, int *arg1, int arg2)
+void func_JL(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("JZ");
+    if ((*arg1) < memoria->REG[AX])
+    {
+        memoria->REG[IP] = (*arg2);
+    }
 }
-void func_JP(TMemoria *memoria, int *arg1, int arg2)
+void func_JZ(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("JP");
+    if ((memoria->REG[CC] & 0xfff1) == 0x0001)
+    {
+        memoria->REG[IP] = (*arg1);
+    }
 }
-void func_JN(TMemoria *memoria, int *arg1, int arg2)
+void func_JP(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("JN");
+    if ((memoria->REG[CC] & 0xfff1) == 0x0000)
+    {
+        memoria->REG[IP] = (*arg1);
+    }
 }
-void func_JNZ(TMemoria *memoria, int *arg1, int arg2)
+void func_JN(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("JNZ");
+    if ((memoria->REG[CC] & 0x1fff) == 0x1000)
+    {
+        memoria->REG[IP] = (*arg1);
+    }
 }
-void func_JNP(TMemoria *memoria, int *arg1, int arg2)
+void func_JNZ(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("JNP");
+    if ((memoria->REG[CC] & 0xfff1) == 0x0000)
+    {
+        memoria->REG[IP] = (*arg1);
+    }
 }
-void func_JNN(TMemoria *memoria, int *arg1, int arg2)
+void func_JNP(TMemoria *memoria, int *arg1, int *arg2)
+{
+    if ((memoria->REG[CC] & 0x1fff) == 0x1000)
+    {
+        memoria->REG[IP] = (*arg1);
+    }
+}
+void func_JNN(TMemoria *memoria, int *arg1, int *arg2)
 {
     printf("JNN");
 }
@@ -406,7 +466,7 @@ char *getNombreDelRegistro(int i)
     }
     return '\0';
 }
-void func_SYS(TMemoria *memoria, int *arg1, int arg2)
+void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
 {
     int configuracion = memoria->REG[AX], prompt = 0, endline = 0, caracter = 0, direccion;
 
@@ -527,7 +587,7 @@ void func_SYS(TMemoria *memoria, int *arg1, int arg2)
         break;
     }
 }
-void func_STOP(TMemoria *memoria, int *arg1, int arg2)
+void func_STOP(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("STOP");
+    getch();
 }
