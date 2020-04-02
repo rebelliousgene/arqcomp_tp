@@ -15,21 +15,27 @@
 #define FX 0x15
 
 
-typedef struct
+typedef struct ///para asociar nombre con valor de los registros
 {
     char nom[4];
-    int num;
 } Registro;
 
-typedef struct
+typedef struct ///instruccion a guardar en IMG
 {
-    char cod[8];
-    char op1[4];
-    char op2[4];
+    int v1; ///32bits
+    int v2; /// 32 bits
+
+}tipoInst;
+
+typedef struct ///codigo instruccion antes de pasar a maquina
+{
+    char cod[2];
+    char op1;
+    char op2;
 } instruccion;
 
 
-typedef struct
+typedef struct ///estructura de rotulo
 {
     char nom[11];
     int linea;
@@ -75,13 +81,13 @@ void inicRegistros(Registro registros[])
 }
 
 
-int comparaCodigos(char *pMnemonico, char mnem[][4], int cantCodigos)
+int comparaCodigos(char *pInstruccion, char mnem[][4], int cantCodigos)
 {
     int enc=-1;
     int i=1;
     while ( i <= cantCodigos && enc == -1)
     {
-        if (strstr(pMnemonico,mnem[i]))
+        if (strstr(pInstruccion,mnem[i]))
         {
             enc = i;
         }
@@ -108,63 +114,98 @@ int siEsRegistro(char *op, Registro registros[])
 }
 
 
-int devOperando(char *op, Registro registros[])
+int devOperando(char *op, char *tipo; Registro registros[]) ///modifico tipo y devuelvo los 32 bits codOP
 {
     char operando[4]= {0x00,0x00,0x00,0x00};
-    int tipo = -1;
+    int entero=0; ///para conversiones;
     int reg;
-    int num;
+    int codOP; /// representa 32 bits de codigo operando
+    if (op != NULL)
+    {
     reg=siEsRegistro(op,registros);
     if (reg != -1)
     {
-        tipo=0x01;
-        operando[0] = reg;
+        *tipo=0x01;
+        operando[3] = reg; ///utiliza ultimos 4 bits;
+
     }
     else
     {
         if (strchr(op,'[') && strchr(op,']'))
         {
-            tipo=0x02;
+            *tipo=0x02;
             if (strstr(op,"ES"))
             {
-                operando[3]=ES;
+                operando[0]=ES;
+                operando[0] = operando[0] << 4;
             }
             else
             {
-                operando[3]=DS;
+                operando[0]=DS;
+                operando[0]= operando[0] << 4;
             }
 
         }
         else
-            tipo=0;
+        {
+            *tipo=0x00;
+            if (strchr(operando,'@')) ///si es octal
+            {
+                while (op[1] != 0)
+                {
+                entero= entero + op[1] & 00000111;
+                op[1] = op[1] >>3;
+                }
+            }
+            else if (strchr(operando,'%')) ///si es hexa
+            {
+
+            }
+            else
+            {///es decimal
+
+            }
+        }
     }
 //    strchr(op,'#') || strchr(op,'@') || strchr(op,'#')
-    return tipo;
+
+    }
+    else
+        codOP=0;
+    return codOP;
 }
 
 
-void corteDatos(char *pRotulo, char *pMnemonico, char mnem[][4], int cantCodigos, Registro registros[])
+void corteDatos(char *pRotulo, char *pInstruccion, char mnem[][4], int cantCodigos, Registro registros[])
 {
-    int op1=0;  ///En caso de que no posea algun operando
-//    int op2=0;
+    int codOP1=0;  ///En caso de que no posea algun operando
+    int codOP2=0;
     instruccion v;
-int indice=-1;
+    int indice=-1;
     char *operando1=NULL;
     char *operando2=NULL;
     char *Mnemonico;
-    Mnemonico = strtok(pMnemonico," ");
+    Mnemonico = strtok(pInstruccion," ");
     printf("mnemonico: %s\n", Mnemonico);
-   indice = comparaCodigos(Mnemonico,mnem,cantCodigos);
+    indice = comparaCodigos(Mnemonico,mnem,cantCodigos);
     if (indice != -1)
     {
-        operando1 = strtok(NULL," ,");
-        printf("OPERANDO1: %s\n",operando1);
-        operando2= strtok(NULL,", ");
-        printf("operando2 %s",operando2);
         strcpy(v.cod, mnem[indice]);
-        strcpy(v.op1,operando1);
-        strcpy(v.op2,operando2);
-        op1= devOperando(operando1,registros);
+        operando1 = strtok(NULL," ,");
+        if (operando1)
+        {
+            strcpy(v.op1,operando1);
+            printf("OPERANDO1: %s\n",operando1);
+        }
+        operando2= strtok(NULL,", ");
+        if (operando2)
+        {
+            printf("operando2 %s",operando2);
+            strcpy(v.op2,operando2); ///ver si qutiar
+        }
+
+       codOP1=devOperando(operando1,registros); /// devuelve los codigos de operando de 32 bits
+       codOP2=devOperando(operando2,registros);
     }
     else
     {
@@ -191,21 +232,30 @@ void traduccion(char *asmNOM, int reg[16], int ram[2000], Rotulo vecRotulos[], c
     Rotulo r;
     char *pRotulo=NULL;
     char *pRenglon = (char *)malloc(sizeof(char)*128);
-    char *pMnemonico;
+    char *pInstruccion;
     char *p;
     char *cadena;
     FILE *archASM = fopen(asmNOM,"rt");
     instruccion ins;
+    char dato;
     int i=0;
+    int k=1;
 
     if (archASM)
     {
-
-       fgets(assembler,43,archASM);
+      dato = fgetc(archASM);
         while (!feof(archASM))
         {
+            assembler[0]=dato;
+            while(dato != '\n' && dato != EOF)
+            {
+                dato=fgetc(archASM);
+                assembler[k] = dato;
+                k++;
+            }
+            assembler[k]= '\0';
+            k=1;
 
-            printf("assembler: %s\n",assembler);
             strcpy(pRenglon,assembler);
             cadena=strtok(pRenglon,"\t\n");
             strupr(cadena);
@@ -223,16 +273,16 @@ void traduccion(char *asmNOM, int reg[16], int ram[2000], Rotulo vecRotulos[], c
                     if (strchr(cadena,':'))
                     {
                         pRotulo = cadena;
-                        pMnemonico = strstr(cadena, ":");
-                        *(pMnemonico) = '\0';
-                        pMnemonico++;
-                        printf("pMnemonico %s", pMnemonico);
+                        pInstruccion = strstr(cadena, ":");
+                        *(pInstruccion) = '\0';
+                        pInstruccion++;
+                        printf("pInstruccion %s", pInstruccion);
                     }
                     else
                     {
-                        pMnemonico = cadena;
+                        pInstruccion = cadena;
                     }
-                    if (p=strstr(pMnemonico,"//"))
+                    if (p=strstr(pInstruccion,"//"))
                     {
                         *p= '\0';
                     }
@@ -248,18 +298,17 @@ void traduccion(char *asmNOM, int reg[16], int ram[2000], Rotulo vecRotulos[], c
 
                     nLinea++;
                     ///pulido en el mnemonico
-                    while (*pMnemonico == ' ')
-                        pMnemonico++;
+                    while (*pInstruccion == ' ')
+                        pInstruccion++;
 
 
-                   corteDatos(pRotulo,pMnemonico,mnem,cantCodigos,registros);
+                    corteDatos(pRotulo,pInstruccion,mnem,cantCodigos,registros);
                 }
             }
-           fgets(assembler,43,archASM);
+        dato = fgetc(archASM);
         }
+}
 
-
-    }
     fclose(archASM);
 }
 
