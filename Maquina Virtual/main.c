@@ -62,7 +62,7 @@ int main(int arge, char *arg[])
     int flag = 0;
     TMemoria memoria;
 
-    //if (arge > 1)
+    if (arge > 1)
     {
         for (int i = 1; i < arge; i++)
         {
@@ -73,7 +73,7 @@ int main(int arge, char *arg[])
                     flag = 1;
         }
 
-        if (CargarImagen(&memoria, "Imagenes\\imagen4.txt"))//url))
+        if (CargarImagen(&memoria, url))
         {
             if (flag)
             {
@@ -129,7 +129,7 @@ void MostrarCodigoAssembler(TMemoria memoria)
     }
     printf("\n");
 }
-//
+//CARGA LA IMAGEN DEL ARCHIVO
 int CargarImagen(TMemoria *memoria, char *url)
 {
     FILE *imgFile = fopen(url, "rb");
@@ -143,6 +143,7 @@ int CargarImagen(TMemoria *memoria, char *url)
     }
     return 0;
 }
+//DEFINE EL TIPO DE OPERANDO (DIRECTO, DE REGISTRO O IMNEDIATO) EN "TIPO" Y ASIGNA SU VALOR EN "OPERANDO"
 void tipoOperandos(TMemoria memoria, int celda, int *tipo, int *operando)
 {
     switch (celda)
@@ -167,6 +168,7 @@ void tipoOperandos(TMemoria memoria, int celda, int *tipo, int *operando)
         break;
     }
 }
+//PREPARA LAS INSTRUCCIONES PARA OBTENER LOS TIPOS Y OPERANDOS
 void ObtenerOperandos(TMemoria memoria, int Instancia, int *tOper1, int *Oper1, int *tOper2, int *Oper2)
 {
     int inst1 = (Instancia&0x0000ff00) >> 8, inst2 = Instancia&0x000000ff;
@@ -174,11 +176,13 @@ void ObtenerOperandos(TMemoria memoria, int Instancia, int *tOper1, int *Oper1, 
     tipoOperandos(memoria, inst1, tOper1, Oper1);
     tipoOperandos(memoria, inst2, tOper2, Oper2);
 }
+//BUSCA EL MNEMONICO CORRESPONDIENTE
 void InterpretarInstruccion(int *tInst, int codInst)
 {
     (*tInst) = getMnemonico(codInst);
 }
-
+//EJECUTA LA INSTRUCCION, A PARTIR DEL TIPO DE OPERANDOS. SACA LOS VALORES DEL REGISTRO, RAM O DIRECTAMENTE. LUEGO SI ES EL CASO
+//LOS GUARDA EN DONDE CORRESPONDA (RAM O REGISTRO)
 void EjecutarInstruccion(TMemoria *memoria, T_FUNC* mnemonicos, int tMnemonico, int tOper1, int Oper1, int tOper2, int Oper2)
 {
     int arg1, arg2, auxIP = memoria->REG[IP];
@@ -213,6 +217,7 @@ void EjecutarInstruccion(TMemoria *memoria, T_FUNC* mnemonicos, int tMnemonico, 
     if (tOper2 == 2)
         memoria->RAM[tOper2] = arg2;
 }
+//EJECUTA EL CODIGO A PARTIR DE LOS DATOS DE LA RAM Y EL REG
 void EjecutarMemoria(TMemoria *memoria)
 {
     int tipoMnemonico, codInstruccion, tipoOperando1, tipoOperando2, codOperando1, codOperando2;
@@ -230,7 +235,7 @@ void EjecutarMemoria(TMemoria *memoria)
 }
 
 //----------------------------------------------------------------
-
+//CARGA LOS STRINGS DE LOS MNEMONICOS PARA MOSTRARLOS POR PANTALLA
 void CargarStringMnemonicos(char *StringMmemonicos[])
 {
     StringMmemonicos[1] = "MOV";
@@ -261,7 +266,7 @@ void CargarStringMnemonicos(char *StringMmemonicos[])
     StringMmemonicos[129] = "SYS";
     StringMmemonicos[143] = "STOP";
 }
-
+//CARGA EL VECTOR DE FUNCIONES
 void CargarMnemonicos(T_FUNC *mnemonicos)
 {
     mnemonicos[1] = &func_MOV;
@@ -379,10 +384,12 @@ void func_XOR(TMemoria *memoria, int *arg1, int *arg2)
 void func_SHL(TMemoria *memoria, int *arg1, int *arg2)
 {
     (*arg1) <<= (*arg2);
+    ModificarCC(memoria, *arg1);
 }
 void func_SHR(TMemoria *memoria, int *arg1, int *arg2)
 {
     (*arg1) >>= (*arg2);
+    ModificarCC(memoria, *arg1);
 }
 void func_JMP(TMemoria *memoria, int *arg1, int *arg2)
 {
@@ -418,7 +425,7 @@ void func_JZ(TMemoria *memoria, int *arg1, int *arg2)
 }
 void func_JP(TMemoria *memoria, int *arg1, int *arg2)
 {
-    if ((memoria->REG[CC] & 0xfff1) == 0x0000)
+    if ((memoria->REG[CC] & 0x1fff) == 0x0000)
     {
         memoria->REG[IP] = (*arg1);
     }
@@ -439,14 +446,17 @@ void func_JNZ(TMemoria *memoria, int *arg1, int *arg2)
 }
 void func_JNP(TMemoria *memoria, int *arg1, int *arg2)
 {
-    if ((memoria->REG[CC] & 0x1fff) == 0x1000)
+    if ((memoria->REG[CC] & 0x1ff1) == 0x1001)
     {
         memoria->REG[IP] = (*arg1);
     }
 }
 void func_JNN(TMemoria *memoria, int *arg1, int *arg2)
 {
-    printf("JNN");
+    if ((memoria->REG[CC] & 0x1ff1) == 0x0001)
+    {
+        memoria->REG[IP] = (*arg1);
+    }
 }
 char *getNombreDelRegistro(int i)
 {
@@ -589,5 +599,5 @@ void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
 }
 void func_STOP(TMemoria *memoria, int *arg1, int *arg2)
 {
-    getch();
+    memoria->REG[IP] = memoria->REG[DS];
 }
