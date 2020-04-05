@@ -446,14 +446,14 @@ void func_JNZ(TMemoria *memoria, int *arg1, int *arg2)
 }
 void func_JNP(TMemoria *memoria, int *arg1, int *arg2)
 {
-    if ((memoria->REG[CC] & 0x1ff1) == 0x1001)
+    if ((memoria->REG[CC] & 0x1fff) == 0x1000 || (memoria->REG[CC] & 0xfff1) == 0x0001)
     {
         memoria->REG[IP] = (*arg1);
     }
 }
 void func_JNN(TMemoria *memoria, int *arg1, int *arg2)
 {
-    if ((memoria->REG[CC] & 0x1ff1) == 0x0001)
+    if ((memoria->REG[CC] & 0x1fff) == 0x0000 || (memoria->REG[CC] & 0xfff1) == 0x0001)
     {
         memoria->REG[IP] = (*arg1);
     }
