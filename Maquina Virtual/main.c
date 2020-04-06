@@ -99,6 +99,50 @@ void ObtenerInstruccion(TMemoria memoria, int i, int *codInstruccion, int *codOp
     (*codOperando1) = memoria.RAM[i+1];
     (*codOperando2) = memoria.RAM[i+2];
 }
+int CalcularCantidadDigitos(int base, int num)
+{
+    int i = 0;
+    if (num == 0)
+        i++;
+    else
+        while (num > 0)
+        {
+            num/=base;
+            i++;
+        }
+
+    return i;
+}
+//MUESTRA POR PANTALLA UN NUMERO PARTIDO POR UN ESPACIO
+void MostrarConEspacio(char *formato, int base, int num, int posicionEspacio, int cantDigitos)
+{
+    int numMostrar = 0;
+    int i = 0, digitos = CalcularCantidadDigitos(base, num);
+
+    for (; i < cantDigitos; i++)
+    {
+        if (i == posicionEspacio)
+            printf(" ");
+        if (cantDigitos - i > digitos)
+        {
+            printf(formato, 0);
+        }
+        else
+        {
+            numMostrar = num / pow(base, cantDigitos - i - 1);
+            num /= base;
+
+            printf(formato, numMostrar);
+        }
+    }
+}
+//MOSTRAR DIRECCION
+void MostrarDireccion(int base, int direccion, int espacio, int cantDigitos)
+{
+    printf("[");
+    MostrarConEspacio("%x", base, direccion, espacio, cantDigitos);
+    printf("]: ");
+}
 //MOSTRAR CODIGO ASSEMBLER
 void MostrarArgumento(int tOper, int oper)
 {
@@ -121,7 +165,8 @@ void MostrarCodigoAssembler(TMemoria memoria)
     {
         ObtenerInstruccion(memoria, i, &memoria.RAM[i], &oper1, &oper2);
 
-        printf("[%08x]: %s", i, StringMnemonicos[getMnemonico(memoria.RAM[i])]);
+        MostrarDireccion(16, i, 4, 8);
+        printf("%s", StringMnemonicos[getMnemonico(memoria.RAM[i])]);
         MostrarArgumento((memoria.RAM[i]&0x0000ff00) >> 8, oper1);
         printf(",");
         MostrarArgumento((memoria.RAM[i]&0x000000ff), oper2);
@@ -496,7 +541,7 @@ void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
                     char cadena[50];
                     if (prompt)
                     {
-                        printf("[%08d]: ", (memoria->REG[DX]));
+                        MostrarDireccion(10, memoria->REG[DX], -1, 4);
                     }
                     fflush(stdin);
                     gets(cadena);
@@ -508,10 +553,11 @@ void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
                 else
                 {
                     for (int i = 0; i < memoria->REG[CX]; i++)
-                        {
+                    {
                         if (prompt)
                         {
-                            printf("[%08d]: ", (memoria->REG[DX] + i));
+                            MostrarDireccion(10, memoria->REG[DX] + i, -1, 4);
+                            //printf("[%08d]: ", (memoria->REG[DX]));
                         }
                         if ((configuracion & 0x0008) == 0x0008)
                             scanf("%x", &memoria->RAM[direccion + i]);
@@ -545,10 +591,14 @@ void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
                 for (int i = 0; i < memoria->REG[CX]; i++)
                 {
                     if (prompt && (i == 0 || endline))
-                        printf("[%08d]: ", (memoria->REG[DX] + i));
+                    MostrarDireccion(10, memoria->REG[DX] + i, -1, 4);
+                        //printf("[%08d]: ", (memoria->REG[DX] + i));
 
                     if (caracter)
-                        printf("%c", memoria->RAM[direccion + i]);
+                        if (memoria->RAM[direccion + i] < 255)
+                            printf("%c", memoria->RAM[direccion + i]);
+                        else
+                            printf(".");
 
                     if ((configuracion & 0x0008) == 0x0008)
                         printf("%%%x", memoria->RAM[direccion + i]);
