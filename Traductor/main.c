@@ -368,7 +368,7 @@ int siRotuloRepetido(Rotulo v[], int cantR, char *nuevo)
 }
 
 
-int traduccion(char *asmNOM, int reg[16], int ram[2000], Rotulo vecRotulos[], char mnem[][4], Registro registros[], char comando)
+int traduccion(char *asmNOM, int ram[2000], Rotulo vecRotulos[], char mnem[][4], Registro registros[], char comando)
 {
     int cantR=0; ///cant Rotulos
     tipoInst linea; ///Linea a imprimir y guardar en RAM
@@ -427,7 +427,7 @@ int traduccion(char *asmNOM, int reg[16], int ram[2000], Rotulo vecRotulos[], ch
                     {
                         pInstruccion = cadena;
                     }
-                    if (p=strstr(pInstruccion,"//"))
+                    if (p=(strstr(pInstruccion,"//")))
                     {
                         *p= '\0';
                     }
@@ -452,7 +452,7 @@ int traduccion(char *asmNOM, int reg[16], int ram[2000], Rotulo vecRotulos[], ch
                         pInstruccion++;
 
 
-                    tipoInst linea= corteDatos(vecRotulos,cantR,pInstruccion,mnem,registros);
+                    linea= corteDatos(vecRotulos,cantR,pInstruccion,mnem,registros);
 
                     if (linea.codIns != 0xFFFFFFFF)
                     {
@@ -466,7 +466,7 @@ int traduccion(char *asmNOM, int reg[16], int ram[2000], Rotulo vecRotulos[], ch
 
                     }
                     else
-                        coparAIMG=0;
+                        copiarAIMG=0;
                     if (comando != 'o')
                         impresionLinea(linea,assembler,nLinea,nCelda);
                 }
@@ -485,6 +485,7 @@ int traduccion(char *asmNOM, int reg[16], int ram[2000], Rotulo vecRotulos[], ch
     }
 
     fclose(archASM);
+    return copiarAIMG;
 }
 
 void copiaraIMG(int RAM[2000], Registro reg[], char *nomIMG)
@@ -495,10 +496,10 @@ void copiaraIMG(int RAM[2000], Registro reg[], char *nomIMG)
     {
         while (i<16)
         {
-            fwrite(&(reg[0].valor),sizeof(int),archIMG)
+            fwrite(&(reg[0].valor),sizeof(int),1,archIMG);
             i++;
         }
-        fwrite(&RAM,sizeof(int)*2000,archIMG);
+        fwrite(&RAM,sizeof(int),2000,archIMG);
         fclose(archIMG);
     }
 
@@ -508,7 +509,7 @@ void copiaraIMG(int RAM[2000], Registro reg[], char *nomIMG)
 
 int main(int argc, char *argv[])
 {
-    int reg[16];
+//    int reg[16];
     int ram[2000] = {0};
     char mnem[144][4];
     int c; ///determina si se copia a img o no
@@ -517,10 +518,10 @@ int main(int argc, char *argv[])
     inicRegistros(registros);
     inicCodigos(mnem);
 
-    char asmNOM[] = "archASM.asm";
+//    char asmNOM[] = "archASM.asm";
+    char *asmNOM;
     char *imgNOM;
-    int i;
-    char *comando=NULL;
+    char comando=' ';
     //traduccion(asmNOM,reg,ram,vecRotulos,mnem,registros,comando);
 
 
@@ -544,9 +545,9 @@ int main(int argc, char *argv[])
         }
 
     }
-    c=traduccion(asmNOM,reg,ram,vecRotulos,mnem,registros,comando);
+    c=traduccion(asmNOM,ram,vecRotulos,mnem,registros,comando);
     if (c)
-        copiaraIMG(ram,reg,imgNOM);
+        copiaraIMG(ram,registros,imgNOM);
 
     return 0;
 }
