@@ -76,6 +76,8 @@ void inicCodigos(char mnem[][4])
 
 void inicRegistros(Registro registros[])
 {
+    registros[0].valor=0;
+    registros[1].valor=0;
     strcpy(registros[DS].nom,"DS");
     registros[DS].valor=0;
     strcpy(registros[ES].nom,"ES");
@@ -83,6 +85,9 @@ void inicRegistros(Registro registros[])
     strcpy(registros[IP].nom,"IP");
     registros[DS].valor=0;
     strcpy(registros[AC].nom,"AC");
+    registros[5].valor=0;
+    registros[6].valor=0;
+    registros[7].valor=0;
     registros[AC].valor=0;
     strcpy(registros[CC].nom,"CC");
     registros[CC].valor=0;
@@ -501,12 +506,13 @@ void copiaraIMG(int RAM[2000], Registro reg[], char *nomIMG)
     int i=0;
     if (archIMG)
     {
-        while (i<16)
-        {
-            fwrite(&(reg[0].valor),sizeof(int),1,archIMG);
-            i++;
-        }
-        fwrite(&RAM,sizeof(int),2000,archIMG);
+
+    while (i < 16)
+    {
+        fwrite(&(reg[i].valor),sizeof(int),1,archIMG);
+        i++;
+    }
+        fwrite(RAM,sizeof(int),2000,archIMG);
         fclose(archIMG);
     }
 
