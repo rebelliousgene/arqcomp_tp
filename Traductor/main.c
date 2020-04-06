@@ -52,7 +52,7 @@ void inicCodigos(char mnem[][4])
     strcpy(mnem[0x10],"");
     strcpy(mnem[0x11],"");
     strcpy(mnem[0x12],"");
-    strcpy(mnem[0x13],"");
+    strcpy(mnem[0x13],"CMP");
     strcpy(mnem[0x14],"");
     strcpy(mnem[0x15],"");
     strcpy(mnem[0x16],"");
@@ -112,11 +112,11 @@ int comparaCodigos(char *pInstruccion, char mnem[][4])
         {
             enc = i;
         }
-        if (i == 0x29)
-        {
-            i = 0x8F;
-        }
-        else
+//        if (i == 0x29)
+//        {
+//            i = 0x81;
+//        }
+//        else
             i= i + 0x01;
     }
     return enc;
@@ -170,6 +170,7 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceReg, Rotulo 
         }
         else
         {
+            printf("ESDIGITO: %d", isdigit((op)[0]));
             if (strchr(op,'[') && strchr(op,']')) ///directo
             {
                 *tipo=2;
@@ -219,11 +220,14 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceReg, Rotulo 
                     codOP= entero;
                     printf("codop %04X",codOP);
                 }
-                else if (strchr(op,'#') || isdigit((op+1)[0]))
+
+                else if (strchr(op,'#') || isdigit((op)[0]))
                 {
-                    op++;
+                    if (strchr(op,'#'))
+                        op++;
+
                     entero=atoi(op);
-                    printf("decimal: %d\n",entero);
+                    printf("DECIMAL: %d\n",entero);
                     codOP= entero;
                 }
                 else if (indiceReg == 0x20 && isalpha(op[0]))
@@ -309,6 +313,7 @@ tipoInst corteDatos(Rotulo rotulos[], int cantR, char *pInstruccion, char mnem[]
     Mnemonico = strtok(pInstruccion," ");
     printf("mnemonico: %s\n", Mnemonico);
     indice = comparaCodigos(Mnemonico,mnem);
+    printf("INDICE: %d", indice);
     if (indice != -1)
     {
         operando1 = strtok(NULL," ,");
@@ -466,9 +471,11 @@ int traduccion(char *asmNOM, int ram[2000], Rotulo vecRotulos[], char mnem[][4],
 
                     }
                     else
+                    {
                         copiarAIMG=0;
-                    if (comando != 'o')
-                        impresionLinea(linea,assembler,nLinea,nCelda);
+                        if (comando != 'o')
+                            impresionLinea(linea,assembler,nLinea,nCelda);
+                    }
                 }
             }
             else
