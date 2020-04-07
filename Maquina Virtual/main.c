@@ -72,14 +72,12 @@ int main(int arge, char *arg[])
                 if (strcmp(arg[i], "-d") == 0)
                     flag = 1;
         }
-
         if (CargarImagen(&memoria, url))
         {
             if (flag)
             {
                 MostrarCodigoAssembler(memoria);
             }
-
             EjecutarMemoria(&memoria);
         }
     }
@@ -88,7 +86,7 @@ int main(int arge, char *arg[])
     return 0;
 }
 
-int getMnemonico(int celda)
+int InterpretarInstruccion(int celda)
 {
     return celda >> 16;
 }
@@ -147,12 +145,12 @@ void MostrarDireccion(int base, int direccion, int espacio, int cantDigitos)
 void MostrarArgumento(int tOper, int oper)
 {
     if (tOper == 0x00)
-        printf(" %d", oper);
+        printf("%d", oper);
     else
         if (tOper == 0x01)
-            printf(" %xX", oper&0x0000000f);
+            printf("%xX", oper&0x0000000f);
         else
-            printf(" [%s:%x]", ((oper&0xf0000000) == 0x20000000)? "DS":"ES",oper&0x0fffffff);
+            printf("[%s:%x]", ((oper&0xf0000000) == 0x20000000)? "DS":"ES",oper&0x0fffffff);
 }
 void MostrarCodigoAssembler(TMemoria memoria)
 {
@@ -166,9 +164,9 @@ void MostrarCodigoAssembler(TMemoria memoria)
         ObtenerInstruccion(memoria, i, &memoria.RAM[i], &oper1, &oper2);
 
         MostrarDireccion(16, i, 4, 8);
-        printf("%s", StringMnemonicos[getMnemonico(memoria.RAM[i])]);
+        printf("%s ", StringMnemonicos[InterpretarInstruccion(memoria.RAM[i])]);
         MostrarArgumento((memoria.RAM[i]&0x0000ff00) >> 8, oper1);
-        printf(",");
+        printf(", ");
         MostrarArgumento((memoria.RAM[i]&0x000000ff), oper2);
         printf("\n");
     }
@@ -213,7 +211,7 @@ void tipoOperandos(TMemoria memoria, int celda, int *tipo, int *operando)
         break;
     }
 }
-//PREPARA LAS INSTRUCCIONES PARA OBTENER LOS TIPOS Y OPERANDOS
+//PREPARA LA INSTRUCCIONES PARA OBTENER LOS TIPOS Y OPERANDOS
 void ObtenerOperandos(TMemoria memoria, int Instancia, int *tOper1, int *Oper1, int *tOper2, int *Oper2)
 {
     int inst1 = (Instancia&0x0000ff00) >> 8, inst2 = Instancia&0x000000ff;
@@ -221,46 +219,40 @@ void ObtenerOperandos(TMemoria memoria, int Instancia, int *tOper1, int *Oper1, 
     tipoOperandos(memoria, inst1, tOper1, Oper1);
     tipoOperandos(memoria, inst2, tOper2, Oper2);
 }
-//BUSCA EL MNEMONICO CORRESPONDIENTE
-void InterpretarInstruccion(int *tInst, int codInst)
-{
-    (*tInst) = getMnemonico(codInst);
-}
 //EJECUTA LA INSTRUCCION, A PARTIR DEL TIPO DE OPERANDOS. SACA LOS VALORES DEL REGISTRO, RAM O DIRECTAMENTE. LUEGO SI ES EL CASO
 //LOS GUARDA EN DONDE CORRESPONDA (RAM O REGISTRO)
 void EjecutarInstruccion(TMemoria *memoria, T_FUNC* mnemonicos, int tMnemonico, int tOper1, int Oper1, int tOper2, int Oper2)
 {
     int arg1, arg2, auxIP = memoria->REG[IP];
-    if (tOper1 == 0)
-        arg1 = Oper1;
-    else
-        if (tOper1 == 1)
-            arg1 = memoria->REG[Oper1];
-        else
-            arg1 = memoria->RAM[Oper1];
 
-    if (tOper2 == 0)
-        arg2 = Oper2;
-    else
-        if (tOper2 == 1)
-            arg2 = memoria->REG[Oper2];
-        else
-            arg2 = memoria->RAM[Oper2];
+    switch (tOper1)
+    {
+        case 0: arg1 = Oper1; break; //INMEDIATO
+        case 1: arg1 = memoria->REG[Oper1]; break; //REGISTRO
+        case 2: arg1 = memoria->RAM[Oper1]; //DIRECTO
+    }
+    switch (tOper2)
+    {
+        case 0: arg2 = Oper2; break;
+        case 1: arg2 = memoria->REG[Oper2]; break;
+        case 2: arg2 = memoria->RAM[Oper2];
+    }
 
     mnemonicos[tMnemonico](memoria, &arg1, &arg2);
 
     if (auxIP == memoria->REG[IP])
         memoria->REG[IP]+=3;
 
-    if (tOper1 == 1)
-        memoria->REG[Oper1] = arg1;
-    if (tOper1 == 2)
-        memoria->RAM[Oper1] = arg1;
-
-    if (tOper2 == 1)
-        memoria->REG[tOper2] = arg2;
-    if (tOper2 == 2)
-        memoria->RAM[tOper2] = arg2;
+    switch (tOper1)
+    {
+        case 1: memoria->REG[Oper1] = arg1; break;
+        case 2: memoria->RAM[Oper1] = arg1;
+    }
+    switch (tOper2)
+    {
+        case 1: memoria->REG[tOper2] = arg2; break;
+        case 2: memoria->RAM[tOper2] = arg2;
+    }
 }
 //EJECUTA EL CODIGO A PARTIR DE LOS DATOS DE LA RAM Y EL REG
 void EjecutarMemoria(TMemoria *memoria)
@@ -274,7 +266,7 @@ void EjecutarMemoria(TMemoria *memoria)
     {
         ObtenerInstruccion(*memoria, memoria->REG[IP], &codInstruccion, &codOperando1, &codOperando2);
         ObtenerOperandos(*memoria, codInstruccion, &tipoOperando1, &codOperando1, &tipoOperando2, &codOperando2);
-        InterpretarInstruccion(&tipoMnemonico, codInstruccion);
+        tipoMnemonico = InterpretarInstruccion(codInstruccion);
         EjecutarInstruccion(memoria, mnemonicos, tipoMnemonico, tipoOperando1, codOperando1, tipoOperando2, codOperando2);
     }
 }
@@ -523,7 +515,7 @@ char *getNombreDelRegistro(int i)
 }
 void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
 {
-    int configuracion = memoria->REG[AX], prompt = 0, endline = 0, caracter = 0, direccion;
+    int configuracion = memoria->REG[AX], prompt = 0, endline = 0, caracter = 0, direccion, espacio = 0;
 
     switch ((int)(*arg1))
     {
@@ -560,9 +552,9 @@ void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
                             //printf("[%08d]: ", (memoria->REG[DX]));
                         }
                         if ((configuracion & 0x0008) == 0x0008)
-                            scanf("%x", &memoria->RAM[direccion + i]);
+                            scanf("%x ", &memoria->RAM[direccion + i]);
                         if ((configuracion & 0x0004) == 0x0004)
-                            scanf("%o", &memoria->RAM[direccion + i]);
+                            scanf("%o ", &memoria->RAM[direccion + i]);
                         if ((configuracion & 0x0001) == 0x0001)
                             scanf("%d", &memoria->RAM[direccion + i]);
 
@@ -588,6 +580,8 @@ void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
                 if ((configuracion & 0x00f0) == 0x0010)
                     caracter = 1;
 
+                if ((configuracion & 0x000f) != 0x0000)
+                    espacio = 1;
                 for (int i = 0; i < memoria->REG[CX]; i++)
                 {
                     if (prompt && (i == 0 || endline))
@@ -596,14 +590,18 @@ void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
 
                     if (caracter)
                         if (memoria->RAM[direccion + i] < 255)
+                        {
                             printf("%c", memoria->RAM[direccion + i]);
+                            if (espacio)
+                                printf(" ");
+                        }
                         else
-                            printf(".");
+                            printf(". ");
 
                     if ((configuracion & 0x0008) == 0x0008)
-                        printf("%%%x", memoria->RAM[direccion + i]);
+                        printf("%%%x ", memoria->RAM[direccion + i]);
                     if ((configuracion & 0x0004) == 0x0004)
-                        printf("@%o", memoria->RAM[direccion + i]);
+                        printf("@%o ", memoria->RAM[direccion + i]);
                     if ((configuracion & 0x0001) == 0x0001)
                         printf("%d", memoria->RAM[direccion + i]);
 
@@ -631,12 +629,12 @@ void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
                             printf("[%s]: ", getNombreDelRegistro(i));
 
                         if (caracter)
-                            printf("%c", memoria->REG[i]);
+                            printf("%c ", memoria->REG[i]);
 
                         if ((configuracion & 0x0008) == 0x0008)
-                            printf("%%%04x", memoria->REG[i]);
+                            printf("%%%04x ", memoria->REG[i]);
                         if ((configuracion & 0x0004) == 0x0004)
-                            printf("@%04o", memoria->REG[i]);
+                            printf("@%04o ", memoria->REG[i]);
                         if ((configuracion & 0x0001) == 0x0001)
                             printf("%04d", memoria->REG[i]);
                         if (endline)
