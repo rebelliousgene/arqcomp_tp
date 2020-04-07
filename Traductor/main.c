@@ -56,9 +56,9 @@ void inicCodigos(char mnem[][4])
     strcpy(mnem[0x14],"");
     strcpy(mnem[0x15],"");
     strcpy(mnem[0x16],"");
-    strcpy(mnem[0x17],"RND");
+    strcpy(mnem[0x17],"SWAP");
     strcpy(mnem[0x18],"");
-    strcpy(mnem[0x19],"SWAP");
+    strcpy(mnem[0x19],"RND");
     strcpy(mnem[0x20],"JMP");
     strcpy(mnem[0x21],"JE");
     strcpy(mnem[0x22],"JG");
@@ -69,6 +69,13 @@ void inicCodigos(char mnem[][4])
     strcpy(mnem[0x27],"JNZ");
     strcpy(mnem[0x28],"JNP");
     strcpy(mnem[0x29],"JNN");
+    strcpy(mnem[0x31],"AND");
+    strcpy(mnem[0x32],"OR");
+    strcpy(mnem[0x33],"NOT");
+    strcpy(mnem[0x34],"XOR");
+    strcpy(mnem[0x37],"SHL");
+    strcpy(mnem[0x38],"SHR");
+    strcpy(mnem[0x44],"RET");
     strcpy(mnem[0x81],"SYS");
     strcpy(mnem[0x8F],"STOP");
 }
@@ -122,7 +129,7 @@ int comparaCodigos(char *pInstruccion, char mnem[][4])
 //            i = 0x81;
 //        }
 //        else
-            i= i + 0x01;
+        i= i + 0x01;
     }
     return enc;
 }
@@ -156,14 +163,14 @@ int siEsRotulo(char *op, Rotulo v[], int cantR)
 }
 
 
-int devOperando(int *tipo,char *op, Registro registros[], int indiceReg, Rotulo rotulos[], int cantR) ///modifico tipo y devuelvo los 32 bits codOP
+int devOperando(int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo rotulos[], int cantR) ///modifico tipo y devuelvo los 32 bits codOP
 {
     long int entero=0; ///para conversiones;
     int reg;
     char *trash;
     int codOP; /// representa 32 bits de codigo operando maquina
-    printf("indice registro %X", indiceReg);
-    if (op)
+//    printf("indice MNEM %X", indiceMNEM);
+    if (op && op[0] != ' ')
     {
         reg=siEsRegistro(op,registros);
         if (reg != -1)
@@ -175,7 +182,6 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceReg, Rotulo 
         }
         else
         {
-            printf("ESDIGITO: %d", isdigit((op)[0]));
             if (strchr(op,'[') && strchr(op,']')) ///directo
             {
                 *tipo=2;
@@ -235,10 +241,12 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceReg, Rotulo 
                     printf("DECIMAL: %d\n",entero);
                     codOP= entero;
                 }
-                else if (indiceReg == 0x20 && isalpha(op[0]))
+                else if (((indiceMNEM >= 0x20 && indiceMNEM <=0x29) || indiceMNEM == 0x13) && isalpha(op[0]))
                 {
+                    printf("ES PALABRA DE MNEMONICO\n");
                     printf("%s\n",op);
-                    int j=siEsRotulo(op,rotulos,cantR);
+                    int j;
+                    j=siEsRotulo(op,rotulos,cantR);
                     if(j == -1)
                         codOP= 0xFFFFFFFF;
                     else
@@ -264,7 +272,7 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceReg, Rotulo 
 
 void impresionLinea(tipoInst linea, char *LineaReal, int nLinea, int nCelda)
 {
-    printf("codigo Mnemonico\n");
+    printf("codigo Linea\n");
     int aux;
     aux = linea.codIns;
     int i = 1;
@@ -316,9 +324,9 @@ tipoInst corteDatos(Rotulo rotulos[], int cantR, char *pInstruccion, char mnem[]
     char *operando2=NULL;
     char *Mnemonico;
     Mnemonico = strtok(pInstruccion," ");
-    printf("mnemonico: %s\n", Mnemonico);
+//    printf("mnemonico: %s\n", Mnemonico);
     indice = comparaCodigos(Mnemonico,mnem);
-    printf("INDICE: %d", indice);
+//    printf("INDICE MNEMONICO: %X", indice);
     if (indice != -1)
     {
         operando1 = strtok(NULL," ,");
@@ -337,11 +345,11 @@ tipoInst corteDatos(Rotulo rotulos[], int cantR, char *pInstruccion, char mnem[]
         printf("OPERANDO 2\n");
         codOP2=devOperando(&tipo,operando2,registros,0,rotulos,cantR);/// devuelve los codigos de operando 2 de 32 bits
         tipoOP2=tipo;
-        printf("CODOP1: %04X\t", codOP1);
-        printf("CODOP2: %04X\t", codOP2);
-        printf("indice: %04X\t", indice);
-        printf("TIPOOP1: %04X\t", tipoOP1);
-        printf("TIPOOP2: %04X\t",tipoOP2);
+//        printf("CODOP1: %04X\t", codOP1);
+//        printf("CODOP2: %04X\t", codOP2);
+//        printf("indice: %04X\t", indice);
+//        printf("TIPOOP1: %04X\t", tipoOP1);
+//        printf("TIPOOP2: %04X\t",tipoOP2);
 
     }
 
@@ -349,7 +357,7 @@ tipoInst corteDatos(Rotulo rotulos[], int cantR, char *pInstruccion, char mnem[]
     {
         ins.codIns= indice;
         ins.codIns = (ins.codIns<<16) | (tipoOP1 << 8) | tipoOP2;
-        printf("codions %08X\n", ins.codIns);
+//        printf("codions %08X\n", ins.codIns);
         ins.CODop1 = codOP1;
         ins.CODop2 = codOP2;
         printf("TODO OK\n");
@@ -378,16 +386,74 @@ int siRotuloRepetido(Rotulo v[], int cantR, char *nuevo)
 }
 
 
-int traduccion(char *asmNOM, int ram[2000], Rotulo vecRotulos[], char mnem[][4], Registro registros[], char comando)
+int lecturaRotulos(char *asmNOM, Rotulo vecRotulos[]) ///LEE LOS ROTULOS A LO LARGO DEL PROGRAMA
 {
-    int cantR=0; ///cant Rotulos
+    FILE *archASM=fopen(asmNOM,"rt");
+    char *assembler = (char*)malloc(sizeof(char)*128);
+    int nLinea=1; ///Lineas de instrucción
+    Rotulo r;
+    char *pCadena=NULL;
+    char *pRenglon= (char*)malloc(sizeof(char)*128);
+    char *pRotulo=NULL;
+    char dato;
+    int i=0; ///para el vector de rotulos
+    int k=1; ///para los caracteres de linea en archivo
+    if (archASM)
+    {
+        dato = fgetc(archASM);
+        while (!feof(archASM))
+        {
+            assembler[0]=dato;
+            while(dato != EOF && dato != '\n')
+            {
+                dato=fgetc(archASM);
+                assembler[k] = dato;
+                k++;
+            }
+            assembler[k]= '\0'; ///finalizo la linea de assembler
+            k=1;
+            strcpy(pRenglon,assembler); ///prenglon ahora tiene todo lo de assembler
+            strupr(pRenglon);
+            if (pRenglon[0] != '\0' && pRenglon[0] != '\n' && pRenglon[0] != '/')
+            {
+                pCadena=strtok(pRenglon,"\t\n");
+                if (strchr(pCadena, ':'))
+                {
+                    pRotulo=strtok(pCadena, " :");
+//                    printf("Rotulo %s\t", pRotulo);
+                    if (pRotulo != NULL)
+                    {
+                        if (!siRotuloRepetido(vecRotulos,i,pRotulo))
+                        {
+                            strcpy(r.nom,pRotulo);
+                            r.linea=nLinea;
+                            vecRotulos[i]=r;
+                            i++;
+                        }
+                    }
+                }
+                nLinea++;
+            }
+            pRotulo=NULL;
+            pCadena=NULL;
+            dato=fgetc(archASM);
+        }
+        fclose(archASM);
+    }
+//    for (int j=0; j < i; j++)
+//        printf("%s\n", vecRotulos[j].nom);
+    return i;
+}
+
+
+int traduccion(char *asmNOM, int ram[2000], Rotulo vecRotulos[], char mnem[][4], Registro registros[], char comando,int cantR)
+{
     tipoInst linea; ///Linea a imprimir y guardar en RAM
     char *assembler = (char*)malloc(sizeof(char)*128);
     int nLinea=1; ///Lineas de instrucción
     int nCelda=0; ///indice de celda de instruccion
-    Rotulo r;
     int copiarAIMG=1; ///si existe algun error no copiará a img.
-    char *pRotulo=NULL; ///guarda el puntero al rotulo
+//    char *pRotulo=NULL; ///guarda el puntero al rotulo
     char *pRenglon = (char *)malloc(sizeof(char)*128); ///renglon leído
     char *pInstruccion;
     char *p;
@@ -427,7 +493,7 @@ int traduccion(char *asmNOM, int ram[2000], Rotulo vecRotulos[], char mnem[][4],
                 {
                     if (strchr(cadena,':'))
                     {
-                        pRotulo = cadena;
+//                        pRotulo = cadena;
                         pInstruccion = strstr(cadena, ":");
                         *(pInstruccion) = '\0';
                         pInstruccion++;
@@ -442,20 +508,14 @@ int traduccion(char *asmNOM, int ram[2000], Rotulo vecRotulos[], char mnem[][4],
                         *p= '\0';
                     }
 
-                    if (pRotulo != NULL)
-                    {
-                        printf("rotulo:%s\n",pRotulo);
-                        if (!siRotuloRepetido(vecRotulos,cantR,pRotulo))
-                        {
-                            strcpy(r.nom,pRotulo);
-                            r.linea = nLinea;
-                            vecRotulos[cantR] = r;
-                            printf("EL ROTULO SE GUARDO COMO %s\n", r.nom);
-                            cantR++;
-                        }
-                        else
-                            printf("ERROR:ROTULO REPETIDO\n");
-                    }
+//                    if (pRotulo != NULL)
+//                    {
+//                        printf("rotulo:%s\n",pRotulo);
+//                        if (siEsRotulo(pRotulo,vecRotulos,cantR))
+//                        {
+//                            printf("EL ROTULO EXISTE\n");
+//                        };
+//                    }
 
                     ///pulido en el mnemonico
                     while (*pInstruccion == ' ')
@@ -463,6 +523,7 @@ int traduccion(char *asmNOM, int ram[2000], Rotulo vecRotulos[], char mnem[][4],
 
 
                     linea= corteDatos(vecRotulos,cantR,pInstruccion,mnem,registros);
+                    nLinea++;
 
                     if (linea.codIns != 0xFFFFFFFF)
                     {
@@ -472,7 +533,6 @@ int traduccion(char *asmNOM, int ram[2000], Rotulo vecRotulos[], char mnem[][4],
                         if (comando != 'o')
                             impresionLinea(linea,assembler,nLinea,nCelda);
                         nCelda +=3;
-                        nLinea++;
 
                     }
                     else
@@ -487,7 +547,7 @@ int traduccion(char *asmNOM, int ram[2000], Rotulo vecRotulos[], char mnem[][4],
             {
                 printf("Linea en blanco\n");
             }
-            pRotulo=NULL;
+//            pRotulo=NULL;
             cadena=NULL;
             pInstruccion=NULL;
             p=NULL;
@@ -507,11 +567,11 @@ void copiaraIMG(int RAM[2000], Registro reg[], char *nomIMG)
     if (archIMG)
     {
 
-    while (i < 16)
-    {
-        fwrite(&(reg[i].valor),sizeof(int),1,archIMG);
-        i++;
-    }
+        while (i < 16)
+        {
+            fwrite(&(reg[i].valor),sizeof(int),1,archIMG);
+            i++;
+        }
         fwrite(RAM,sizeof(int),2000,archIMG);
         fclose(archIMG);
     }
@@ -535,7 +595,8 @@ int main(int argc, char *argv[])
     char *asmNOM;
     char *imgNOM;
     char comando=' ';
-    //traduccion(asmNOM,reg,ram,vecRotulos,mnem,registros,comando);
+    int cantR;
+    //traduccion(asmNOM,reg,ram,vecRotulos,mnem,registros,comando,cantR);
 
 
     for (int i = 0 ; i< argc; i++)
@@ -544,6 +605,7 @@ int main(int argc, char *argv[])
         {
             asmNOM= (char *)malloc(strlen(argv[i])*sizeof(char));
             asmNOM = argv[i];
+            cantR=lecturaRotulos(asmNOM,vecRotulos);
 
         }
         if (strstr(argv[i], "-"))
@@ -558,7 +620,7 @@ int main(int argc, char *argv[])
         }
 
     }
-    c=traduccion(asmNOM,ram,vecRotulos,mnem,registros,comando);
+    c=traduccion(asmNOM,ram,vecRotulos,mnem,registros,comando,cantR);
     if (c)
         copiaraIMG(ram,registros,imgNOM);
 
