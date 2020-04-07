@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1586214812 source:c:\users\damia\desktop\progra1\traductor\main.c
+1586289003 source:c:\users\damia\desktop\progra1\traductor\main.c
 	<stdio.h>
 	<stdlib.h>
 	<string.h>

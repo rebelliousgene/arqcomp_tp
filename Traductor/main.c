@@ -227,9 +227,9 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo
                 else if (strchr(op,'%')) ///si es hexa
                 {
                     entero = strtoul(++op,&trash,16);
-                    printf("Hexa : %04x\n",entero);
+//                    printf("Hexa : %04x\n",entero);
                     codOP= entero;
-                    printf("codop %04X",codOP);
+//                    printf("codop %04X",codOP);
                 }
 
                 else if (strchr(op,'#') || isdigit((op)[0]))
@@ -238,19 +238,19 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo
                         op++;
 
                     entero=atoi(op);
-                    printf("DECIMAL: %d\n",entero);
+//                    printf("DECIMAL: %d\n",entero);
                     codOP= entero;
                 }
                 else if (((indiceMNEM >= 0x20 && indiceMNEM <=0x29) || indiceMNEM == 0x13) && isalpha(op[0]))
                 {
-                    printf("ES PALABRA DE MNEMONICO\n");
-                    printf("%s\n",op);
+//                    printf("ES PALABRA DE MNEMONICO\n");
+//                    printf("%s\n",op);
                     int j;
                     j=siEsRotulo(op,rotulos,cantR);
                     if(j == -1)
                         codOP= 0xFFFFFFFF;
                     else
-                        codOP = (rotulos[j].linea); ///guarda la celda en memoria donde se encuentra el rotulo
+                        codOP = (rotulos[j].linea-1)*3; ///guarda la celda en memoria donde se encuentra el rotulo
                 }
                 else
                 {
@@ -553,7 +553,7 @@ int traduccion(char *asmNOM, int ram[2000], Rotulo vecRotulos[], char mnem[][4],
             p=NULL;
             dato = fgetc(archASM);
         }
-        registros[DS].valor=nCelda+1; ///guarda el valor de DS QUE APUNTA AL DATA SEGMENTif (comando != 'o')
+        registros[DS].valor=nCelda-2; ///guarda el valor de DS QUE APUNTA AL DATA SEGMENTif (comando != 'o')
     }
 
     fclose(archASM);
