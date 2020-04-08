@@ -531,10 +531,6 @@ int traduccion(char *asmNOM, int ram[2000], Rotulo vecRotulos[], char mnem[][5],
                     }
                 }
             }
-            else
-            {
-                printf("Linea en blanco\n");
-            }
 
             cadena=NULL;
             pInstruccion=NULL;
