@@ -124,11 +124,6 @@ int comparaCodigos(char *pInstruccion, char mnem[][4])
         {
             enc = i;
         }
-//        if (i == 0x29)
-//        {
-//            i = 0x81;
-//        }
-//        else
         i= i + 0x01;
     }
     return enc;
@@ -163,19 +158,19 @@ int siEsRotulo(char *op, Rotulo v[], int cantR)
 }
 
 
-int devOperando(int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo rotulos[], int cantR) ///modifico tipo y devuelvo los 32 bits codOP
+int devOperando(int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo vecRotulos[], int cantR) ///modifico tipo y devuelvo los 32 bits codOP
 {
     long int entero=0; ///para conversiones;
     int reg;
     char *trash;
     int codOP; /// representa 32 bits de codigo operando maquina
 //    printf("indice MNEM %X", indiceMNEM);
-    if (op && op[0] != ' ')
+    if (op && op[0] != ' ' && op[0] != '\n' && op[0] != '\0')
     {
         reg=siEsRegistro(op,registros);
         if (reg != -1)
         {
-            printf("reg: %04X\n", reg);
+            printf("\treg: %04X\n", reg);
             *tipo=1;
             codOP=reg; ///ultimos 4 bits
 
@@ -211,7 +206,7 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo
                     else
                     {
                         codOP=0xFFFFFFFF;
-                        printf("ERROR: NO ES UNA EXPRESIÓN VALIDA\n");
+                        printf("\tERROR: NO ES UNA EXPRESIÓN VALIDA\n");
                     }
                 }
             }
@@ -221,7 +216,6 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo
                 if (strchr(op,'@')) ///si es octal
                 {
                     entero = strtoul(++op,&trash,8);
-                    printf("octa a decimal : %d",entero);
                     codOP= entero;
                 }
                 else if (strchr(op,'%')) ///si es hexa
@@ -238,24 +232,24 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo
                         op++;
 
                     entero=atoi(op);
-//                    printf("DECIMAL: %d\n",entero);
                     codOP= entero;
                 }
                 else if (((indiceMNEM >= 0x20 && indiceMNEM <=0x29) || indiceMNEM == 0x13) && isalpha(op[0]))
                 {
-//                    printf("ES PALABRA DE MNEMONICO\n");
-//                    printf("%s\n",op);
                     int j;
-                    j=siEsRotulo(op,rotulos,cantR);
-                    if(j == -1)
+                    j=siEsRotulo(op,vecRotulos,cantR);
+                    if(j == -1 || vecRotulos[j].linea == -1)
+                    {
+                        printf("\tLLAMADA A ROTULO REPETIDO O INEXISTENTE\n");
                         codOP= 0xFFFFFFFF;
+                    }
                     else
-                        codOP = (rotulos[j].linea-1)*3; ///guarda la celda en memoria donde se encuentra el rotulo
+                        codOP = vecRotulos[j].linea; ///guarda la celda en memoria donde se encuentra el rotulo
                 }
                 else
                 {
                     codOP=0xFFFFFFFF;
-                    printf("ERROR: no corresponden los datos de operando\n");
+                    printf("\tERROR: no corresponden los datos de operando\n");
                 }
 
             }
@@ -272,7 +266,7 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo
 
 void impresionLinea(tipoInst linea, char *LineaReal, int nLinea, int nCelda)
 {
-    printf("codigo Linea\n");
+    printf("\ncodigo Linea\t");
     int aux;
     aux = linea.codIns;
     int i = 1;
@@ -324,25 +318,26 @@ tipoInst corteDatos(Rotulo rotulos[], int cantR, char *pInstruccion, char mnem[]
     char *operando2=NULL;
     char *Mnemonico;
     Mnemonico = strtok(pInstruccion," ");
-//    printf("mnemonico: %s\n", Mnemonico);
+    printf("\nmnemonico: %s\t", Mnemonico);
     indice = comparaCodigos(Mnemonico,mnem);
-//    printf("INDICE MNEMONICO: %X", indice);
+    printf("INDICE MNEMONICO: %d\t", indice);
     if (indice != -1)
     {
         operando1 = strtok(NULL," ,");
         if (operando1)
         {
-            printf("OPERANDO1: %s\n",operando1);
+            printf("OPERANDO1: %s\t",operando1);
         }
-        operando2= strtok(NULL,", ");
+        operando2= strtok(NULL," \0");
         if (operando2)
         {
             printf("operando2 %s\n",operando2);
         }
 
+
         codOP1=devOperando(&tipo,operando1,registros,indice,rotulos,cantR); /// devuelve los codigos de operando 1 de 32 bits
         tipoOP1=tipo;
-        printf("OPERANDO 2\n");
+        printf("\nOPERANDO 2\n");
         codOP2=devOperando(&tipo,operando2,registros,0,rotulos,cantR);/// devuelve los codigos de operando 2 de 32 bits
         tipoOP2=tipo;
 //        printf("CODOP1: %04X\t", codOP1);
@@ -365,7 +360,7 @@ tipoInst corteDatos(Rotulo rotulos[], int cantR, char *pInstruccion, char mnem[]
     }
     else
     {
-        printf("ERROR EN INSTRUCCION\n");
+        printf("\t ERROR: LA INSTRUCCION ES INVALIDA\n");
         ins.codIns = ins.codIns | 0xFFFFFFFF;
         ins.CODop1 = 0xFFFFFFFF;
         ins.CODop2 = 0xFFFFFFFF;
@@ -396,39 +391,52 @@ int lecturaRotulos(char *asmNOM, Rotulo vecRotulos[]) ///LEE LOS ROTULOS A LO LA
     char *pRenglon= (char*)malloc(sizeof(char)*128);
     char *pRotulo=NULL;
     char dato;
+    int h;
     int i=0; ///para el vector de rotulos
-    int k=1; ///para los caracteres de linea en archivo
+    int k=0; ///para los caracteres de linea en archivo
     if (archASM)
     {
         dato = fgetc(archASM);
         while (!feof(archASM))
         {
-            assembler[0]=dato;
             while(dato != EOF && dato != '\n')
             {
-                dato=fgetc(archASM);
                 assembler[k] = dato;
+                dato=fgetc(archASM);
                 k++;
             }
             assembler[k]= '\0'; ///finalizo la linea de assembler
-            k=1;
+            k=0;
             strcpy(pRenglon,assembler); ///prenglon ahora tiene todo lo de assembler
             strupr(pRenglon);
             if (pRenglon[0] != '\0' && pRenglon[0] != '\n' && pRenglon[0] != '/')
             {
                 pCadena=strtok(pRenglon,"\t\n");
-                if (strchr(pCadena, ':'))
+
+                if (strchr(pCadena,':')) ///PUEDE HABER ROTULO Y OPERANDO DIRECTO
                 {
-                    pRotulo=strtok(pCadena, " :");
-//                    printf("Rotulo %s\t", pRotulo);
+                    pRotulo= strtok(pCadena,":");
+
+                    if (strchr(pRotulo,'[')) ///NO TIENE ROTULO
+                        pRotulo=NULL;
+
+
                     if (pRotulo != NULL)
                     {
+                        pRotulo=strtok(pRotulo," ");
+                        printf("ROTULO %s\n", pRotulo);
+//                        printf("Rotulo %s\n", pRotulo);
                         if (!siRotuloRepetido(vecRotulos,i,pRotulo))
                         {
                             strcpy(r.nom,pRotulo);
                             r.linea=nLinea;
                             vecRotulos[i]=r;
                             i++;
+                        }
+                        else
+                        {
+                            h=siEsRotulo(pRotulo,vecRotulos,i);
+                            vecRotulos[h].linea = -1; ///hará FFFF en la linea correspondiente a la llamada al rotulo
                         }
                     }
                 }
@@ -453,29 +461,28 @@ int traduccion(char *asmNOM, int ram[2000], Rotulo vecRotulos[], char mnem[][4],
     int nLinea=1; ///Lineas de instrucción
     int nCelda=0; ///indice de celda de instruccion
     int copiarAIMG=1; ///si existe algun error no copiará a img.
-//    char *pRotulo=NULL; ///guarda el puntero al rotulo
     char *pRenglon = (char *)malloc(sizeof(char)*128); ///renglon leído
     char *pInstruccion;
     char *p;
     char *cadena;
+    char *subOp; ///para cortes
     FILE *archASM = fopen(asmNOM,"rt");
     char dato;
-    int k=1;
+    int k=0;
 
     if (archASM)
     {
         dato = fgetc(archASM);
         while (!feof(archASM))
         {
-            assembler[0]=dato;
             while(dato != '\n' && dato != EOF)
             {
+                assembler[k]=dato;
                 dato=fgetc(archASM);
-                assembler[k] = dato;
                 k++;
             }
             assembler[k]= '\0';
-            k=1;
+            k=0;
 
 
             if (assembler[0] != '\0' && assembler[0] != '\n')
@@ -491,56 +498,59 @@ int traduccion(char *asmNOM, int ram[2000], Rotulo vecRotulos[], char mnem[][4],
                 }
                 else
                 {
-                    if (strchr(cadena,':'))
+                    if (strchr(cadena,'[') && strchr(cadena,':')) ///PUEDE HABER ROTULO Y OPERANDO DIRECTO
                     {
-//                        pRotulo = cadena;
-                        pInstruccion = strstr(cadena, ":");
-                        *(pInstruccion) = '\0';
-                        pInstruccion++;
-                        printf("pInstruccion %s", pInstruccion);
-                    }
-                    else
-                    {
-                        pInstruccion = cadena;
-                    }
-                    if (p=(strstr(pInstruccion,"//")))
-                    {
-                        *p= '\0';
-                    }
+                        subOp = strstr(cadena,":");
+                        if (strchr(subOp,']')) ///NO TIENE ROTULO, TIENE SOLO OPERANDO
+                            pInstruccion=cadena;
+                        else
+                        {
+                            subOp=strtok(cadena,":");
+                            pInstruccion=strtok(NULL,"\n\0");
 
-//                    if (pRotulo != NULL)
-//                    {
-//                        printf("rotulo:%s\n",pRotulo);
-//                        if (siEsRotulo(pRotulo,vecRotulos,cantR))
-//                        {
-//                            printf("EL ROTULO EXISTE\n");
-//                        };
-//                    }
-
-                    ///pulido en el mnemonico
-                    while (*pInstruccion == ' ')
-                        pInstruccion++;
-
-
-                    linea= corteDatos(vecRotulos,cantR,pInstruccion,mnem,registros);
-                    nLinea++;
-
-                    if (linea.codIns != 0xFFFFFFFF)
-                    {
-                        ram[nCelda] = linea.codIns;
-                        ram[nCelda+1] = linea.CODop1;
-                        ram[nCelda+2] = linea.CODop2;
-                        if (comando != 'o')
-                            impresionLinea(linea,assembler,nLinea,nCelda);
-                        nCelda +=3;
+                        }
 
                     }
                     else
                     {
-                        copiarAIMG=0;
-                        if (comando != 'o')
-                            impresionLinea(linea,assembler,nLinea,nCelda);
+                        if (strchr(cadena,':'))
+                        {
+                            subOp=strtok(cadena,":");
+                            pInstruccion=strtok(NULL,"\n\0");
+                        }
+                        else
+                            pInstruccion=cadena;
                     }
+                }
+
+                if ((p=strstr(pInstruccion,"//")))
+                {
+                    *p= '\0';
+                }
+
+                ///pulido en el mnemonico
+                while (*pInstruccion == ' ')
+                    pInstruccion++;
+
+
+                linea= corteDatos(vecRotulos,cantR,pInstruccion,mnem,registros);
+                nLinea++;
+
+                if (linea.codIns != 0xFFFFFFFF)
+                {
+                    ram[nCelda] = linea.codIns;
+                    ram[nCelda+1] = linea.CODop1;
+                    ram[nCelda+2] = linea.CODop2;
+                    if (comando != 'o')
+                        impresionLinea(linea,assembler,nLinea,nCelda);
+                    nCelda +=3;
+
+                }
+                else
+                {
+                    copiarAIMG=0;
+                    if (comando != 'o')
+                        impresionLinea(linea,assembler,nLinea,nCelda);
                 }
             }
             else
@@ -553,7 +563,8 @@ int traduccion(char *asmNOM, int ram[2000], Rotulo vecRotulos[], char mnem[][4],
             p=NULL;
             dato = fgetc(archASM);
         }
-        registros[DS].valor=nCelda-2; ///guarda el valor de DS QUE APUNTA AL DATA SEGMENTif (comando != 'o')
+        if (nCelda>0)
+            registros[DS].valor=nCelda-2; ///guarda el valor de DS QUE APUNTA AL DATA SEGMENTif (comando != 'o')
     }
 
     fclose(archASM);
