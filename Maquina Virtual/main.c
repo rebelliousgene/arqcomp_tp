@@ -60,7 +60,7 @@ void EjecutarInstruccion(TMemoria *memoria, T_FUNC* mnemonicos, int tMnemonico, 
 
 int CalcularCantidadDigitos(int base, int num);
 void MostrarConEspacio(char *formato, int base, int num, int posicionEspacio, int cantDigitos);
-void MostrarDireccion(int base, int direccion, int espacio, int cantDigitos);
+void MostrarDireccion(int base, int numero, int espacio, int cantDigitos);
 
 void MostrarArgumento(int tOper, int oper);
 int MnemonicoCantArgumentos(int codMnemonico);
@@ -152,10 +152,10 @@ void MostrarConEspacio(char *formato, int base, int num, int posicionEspacio, in
     }
 }
 //MOSTRAR DIRECCION
-void MostrarDireccion(int base, int direccion, int espacio, int cantDigitos)
+void MostrarDireccion(int base, int numero, int espacio, int cantDigitos)
 {
     printf("[");
-    MostrarConEspacio((base == 16)?"%x":"%d", base, direccion, espacio, cantDigitos);
+    MostrarConEspacio((base == 16)?"%x":"%d", base, numero, espacio, cantDigitos);
     printf("]: ");
 }
 //MOSTRAR CODIGO ASSEMBLER
@@ -190,16 +190,31 @@ int MnemonicoCantArgumentos(int codMnemonico)
 void MostrarCodigoAssembler(TMemoria memoria)
 {
     char *StringMnemonicos[256];
-    int i, oper1, oper2, codMnemonico, cantArgumentos;
+    int i, codInstruccion, oper1, oper2, codMnemonico, cantArgumentos;
 
     CargarStringMnemonicos(StringMnemonicos);
 
     for (i = 0; i < memoria.REG[DS]; i+=3)
     {
-        ObtenerInstruccion(memoria, i, &memoria.RAM[i], &oper1, &oper2);
-        codMnemonico = InterpretarInstruccion(memoria.RAM[i]);
+        ObtenerInstruccion(memoria, i, &codInstruccion, &oper1, &oper2);
+        codMnemonico = InterpretarInstruccion(codInstruccion);
 
         MostrarDireccion(16, i, 4, 8);
+
+        //MUESTRA CODIDGO DE INSTRUCCION
+        printf("%04x ", codInstruccion >> 16);
+        //MUESTRA TIPOS DE OPERANDOS
+        printf("%04x ", codInstruccion & 0x0000ffff);
+
+        //MUESTRA LOS OPERANDOS
+        printf("%04x ", oper1 >> 16);
+        printf("%04x ", oper1 & 0x0000ffff);
+
+        printf("%04x ", oper2 >> 16);
+        printf("%04x ", oper2 & 0x0000ffff);
+
+        printf("\t%d: ", (i/3)+1);
+
         printf("%s ", StringMnemonicos[codMnemonico]);
 
         cantArgumentos = MnemonicoCantArgumentos(codMnemonico);
@@ -294,8 +309,8 @@ void EjecutarInstruccion(TMemoria *memoria, T_FUNC* mnemonicos, int tMnemonico, 
     }
     switch (tOper2)
     {
-        case 1: memoria->REG[tOper2] = arg2; break;
-        case 2: memoria->RAM[tOper2] = arg2;
+        case 1: memoria->REG[Oper2] = arg2; break;
+        case 2: memoria->RAM[Oper2] = arg2;
     }
 }
 //EJECUTA EL CODIGO A PARTIR DE LOS DATOS DE LA RAM Y EL REG

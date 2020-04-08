@@ -2,65 +2,89 @@
 #include <string.h>
 #include <ctype.h>
 
+void InicializarRegistros(int reg[16],int ram[2000]);
 void LeerAsmFile();
-void Mnemonico(char ins[5]);
-void Operando(char op[8],int reg[16]);
+void Mnemonico(char ins[5],int nroinstruccion);
+void Operando(char op[8],int nroinstruccion,int reg[16]);
 
 int main(){
     int reg[16];
     int ram[2000];
+    void InicializarRegistros(reg,ram);
     void LeerAsmFile();
     return 0;
+}
+
+void InicializarRegistros(int reg[16],int ram[2000]){
+    int i;
+    for(i=0;i<16;i++){
+        reg[i]=0x0000;
+    }
+    for(i=0;i<2000;i++){
+        ram[i]=0x0000;
+    }
+    reg[2]=500;     //DS empieza en la posicion 500 de RAM
+    reg[3]=1000;        //ES empieza en la posicion 1000 de RAM
 }
 
 void LeerAsmFile(){
     FILE *asmFile = fopen("d:\\test.txt", "rt");
     char cadena[20],texto[20];
     char c;
-    int indice = 0;
+    int indice = 0,nrolinea=0;
 	int ins,op1,op2,i,j;
 	ins=op1=op2=0; //*Para controlar que se cargo
 
-	fscanf(asmFile,"%s",texto);
-	while(texto[0]==' '){
-		strncpy(texto,texto,1); //*Elimina los espacios que hayan antes del mnemonico
-	}
-    for(i=0;i<strlen(texto);i++){
-	c=texto[i];
-	while(c!=' '){
-		if(c==',')
-			c=' ';
-		else{
-			cadena[indice]=c; indice++;
-			i++; c=texto[i];
-		}
-	}
-	cadena[indice]='\0';
-	if (cadena[0]!='\0'){ //En caso de que haya varios espacios seguidos
-        if(ins==0){
-            for(j=0;j<strlen(cadena);j++)
-                cadena[j]=toupper(cadena[j]);
-            //Carga el mnemonico
-            ins=1;
+	fscanf(asmFile,"%c",&c);
+	while(!feof(asmFile)){
+        i=0; nrolinea++;
+        while(c!='\n'){     //Copia una linea del archivo en 'texto'
+            texto[i++]=c;
+            fscanf(asmFile,"%c",&c);
         }
-        else{
-            if(op1==0){
-                //Carga el primer operando
-                op1=1;
-            }
-            else{
-                //*Carga el seundo operando
-                op2=1;
-            }
+        i=0;
+        while(texto[i]==' '){ //Salta los espacios que hay antes del mnemonico
+            i++;
         }
-	}
-	indice=0;
-
-    fclose(asmFile);
+        c=texto[i];
+        while(i<strlen(texto) && c!='/'){  //Pasa a la siguiente linea cuando haya terminado o haya un comentario
+            while(c!=' '){      //Copia en 'cadena' una parte de 'texto'
+                if(c==',' || c=='\t')
+                    c=' ';
+                else{
+                    cadena[indice++]=c;
+                    c=texto[++i];
+                }
+            }
+            cadena[indice]='\0';
+            if (cadena[0]!='\0'){
+                if(ins==0){
+                    for(j=0;j<strlen(cadena);j++)
+                        cadena[j]=toupper(cadena[j]);
+                    //Carga el mnemonico
+                    ins=1;
+                }
+                else{
+                    if(op1==0){
+                        //Carga el primer operando
+                        op1=1;
+                    }
+                    else{
+                        //*Carga el seundo operando
+                        op2=1;
+                    }
+                }
+            }
+        indice=0;
+        c=texto[i];
+        }
+        ins=op1=op2=0;
+        fscanf(asmFile,"%c",&c);
     }
+    fclose(asmFile);
 }
 
-void Mnemonico(char ins[5]){
+void Mnemonico(char ins[5],int nroinstruccion){
     int cod;
     if(!strcmp(ins,"MOV"))
         cod=0x01;
@@ -117,7 +141,7 @@ void Mnemonico(char ins[5]){
     if(!strcmp(ins,"STOP"))
         cod=0x8F;
 }
-void Operando(char op[8],int reg[16]){
+void Operando(char op[8],int nroinstruccion,int reg[16]){
     int tipo,val,i,j; char aux[3];
     if(!strcmp(op,"AX")){
         tipo=0x01; val=0xA;
