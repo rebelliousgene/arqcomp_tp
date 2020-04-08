@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <string.h>
+#include <math.h>
+#include <time.h>
 
 #define DS 2
 #define ES 3
@@ -53,8 +56,22 @@ void func_STOP(TMemoria *memoria, int *arg1, int *arg2);
 int CargarImagen(TMemoria *memoria, char *url);
 void CargarMnemonicos(T_FUNC *mnemonicos);
 void EjecutarMemoria(TMemoria *memoria);
+void EjecutarInstruccion(TMemoria *memoria, T_FUNC* mnemonicos, int tMnemonico, int tOper1, int Oper1, int tOper2, int Oper2);
 
+int CalcularCantidadDigitos(int base, int num);
+void MostrarConEspacio(char *formato, int base, int num, int posicionEspacio, int cantDigitos);
+void MostrarDireccion(int base, int direccion, int espacio, int cantDigitos);
+
+void MostrarArgumento(int tOper, int oper);
+int MnemonicoCantArgumentos(int codMnemonico);
+void CargarStringMnemonicos(char *StringMmemonicos[]);
 void MostrarCodigoAssembler(TMemoria memoria);
+
+int InterpretarInstruccion(int celda);
+void ObtenerInstruccion(TMemoria memoria, int i, int *codInstruccion, int *codOperando1, int *codOperando2);
+
+void tipoOperandos(TMemoria memoria, int celda, int *tipo, int *operando);
+void ObtenerOperandos(TMemoria memoria, int Instancia, int *tOper1, int *Oper1, int *tOper2, int *Oper2);
 
 int main(int arge, char *arg[])
 {
@@ -66,7 +83,7 @@ int main(int arge, char *arg[])
     {
         for (int i = 1; i < arge; i++)
         {
-            if (i == 1)
+            if (i == 1 && strstr(arg[i], ".img") != NULL)
                 strcpy(url, arg[i]);
             else
                 if (strcmp(arg[i], "-d") == 0)
@@ -128,7 +145,7 @@ void MostrarConEspacio(char *formato, int base, int num, int posicionEspacio, in
         else
         {
             numMostrar = num / pow(base, cantDigitos - i - 1);
-            num /= base;
+            num -= base * numMostrar;
 
             printf(formato, numMostrar);
         }
@@ -138,7 +155,7 @@ void MostrarConEspacio(char *formato, int base, int num, int posicionEspacio, in
 void MostrarDireccion(int base, int direccion, int espacio, int cantDigitos)
 {
     printf("[");
-    MostrarConEspacio("%x", base, direccion, espacio, cantDigitos);
+    MostrarConEspacio((base == 16)?"%x":"%d", base, direccion, espacio, cantDigitos);
     printf("]: ");
 }
 //MOSTRAR CODIGO ASSEMBLER
@@ -150,27 +167,54 @@ void MostrarArgumento(int tOper, int oper)
         if (tOper == 0x01)
             printf("%xX", oper&0x0000000f);
         else
-            printf("[%s:%x]", ((oper&0xf0000000) == 0x20000000)? "DS":"ES",oper&0x0fffffff);
+            printf("[%s: %d]", ((oper&0xf0000000) == 0x20000000)? "DS":"ES",oper&0x0fffffff);
+}
+int MnemonicoCantArgumentos(int codMnemonico)
+{
+    switch (codMnemonico)
+    {
+        case 0x20:
+        case 0x24:
+        case 0x25:
+        case 0x26:
+        case 0x27:
+        case 0x28:
+        case 0x29:
+        case 0x33:
+        case 0x81:
+            return 1;
+        case 0x8f: return 0;
+        default: return 2;
+    }
 }
 void MostrarCodigoAssembler(TMemoria memoria)
 {
     char *StringMnemonicos[256];
-    int i, oper1, oper2;
+    int i, oper1, oper2, codMnemonico, cantArgumentos;
 
     CargarStringMnemonicos(StringMnemonicos);
 
     for (i = 0; i < memoria.REG[DS]; i+=3)
     {
         ObtenerInstruccion(memoria, i, &memoria.RAM[i], &oper1, &oper2);
+        codMnemonico = InterpretarInstruccion(memoria.RAM[i]);
 
         MostrarDireccion(16, i, 4, 8);
-        printf("%s ", StringMnemonicos[InterpretarInstruccion(memoria.RAM[i])]);
-        MostrarArgumento((memoria.RAM[i]&0x0000ff00) >> 8, oper1);
-        printf(", ");
-        MostrarArgumento((memoria.RAM[i]&0x000000ff), oper2);
+        printf("%s ", StringMnemonicos[codMnemonico]);
+
+        cantArgumentos = MnemonicoCantArgumentos(codMnemonico);
+
+        if (cantArgumentos > 0)
+        {
+            MostrarArgumento((memoria.RAM[i]&0x0000ff00) >> 8, oper1);
+            if (cantArgumentos > 1)
+            {
+                printf(", ");
+                MostrarArgumento((memoria.RAM[i]&0x000000ff), oper2);
+            }
+        }
         printf("\n");
     }
-    printf("\n");
 }
 //CARGA LA IMAGEN DEL ARCHIVO
 int CargarImagen(TMemoria *memoria, char *url)
@@ -275,64 +319,64 @@ void EjecutarMemoria(TMemoria *memoria)
 //CARGA LOS STRINGS DE LOS MNEMONICOS PARA MOSTRARLOS POR PANTALLA
 void CargarStringMnemonicos(char *StringMmemonicos[])
 {
-    StringMmemonicos[1] = "MOV";
-    StringMmemonicos[2] = "ADD";
-    StringMmemonicos[3] = "SUB";
-    StringMmemonicos[4] = "MUL";
-    StringMmemonicos[5] = "DIV";
-    StringMmemonicos[6] = "MOD";
-    StringMmemonicos[19] = "CMP";
-    StringMmemonicos[23] = "SWAP";
-    StringMmemonicos[25] = "RND";
-    StringMmemonicos[49] = "AND";
-    StringMmemonicos[50] = "OR";
-    StringMmemonicos[51] = "NOT";
-    StringMmemonicos[52] = "XOR";
-    StringMmemonicos[55] = "SHL";
-    StringMmemonicos[56] = "SHR";
-    StringMmemonicos[32] = "JMP";
-    StringMmemonicos[33] = "JE";
-    StringMmemonicos[34] = "JG";
-    StringMmemonicos[35] = "JL";
-    StringMmemonicos[36] = "JZ";
-    StringMmemonicos[37] = "JP";
-    StringMmemonicos[38] = "JN";
-    StringMmemonicos[39] = "JNZ";
-    StringMmemonicos[40] = "JNP";
-    StringMmemonicos[41] = "JNN";
-    StringMmemonicos[129] = "SYS";
-    StringMmemonicos[143] = "STOP";
+    StringMmemonicos[0x1] = "MOV";
+    StringMmemonicos[0x2] = "ADD";
+    StringMmemonicos[0x3] = "SUB";
+    StringMmemonicos[0x4] = "MUL";
+    StringMmemonicos[0x5] = "DIV";
+    StringMmemonicos[0x6] = "MOD";
+    StringMmemonicos[0x13] = "CMP";
+    StringMmemonicos[0x17] = "SWAP";
+    StringMmemonicos[0x19] = "RND";
+    StringMmemonicos[0x31] = "AND";
+    StringMmemonicos[0x32] = "OR";
+    StringMmemonicos[0x33] = "NOT";
+    StringMmemonicos[0x34] = "XOR";
+    StringMmemonicos[0x37] = "SHL";
+    StringMmemonicos[0x38] = "SHR";
+    StringMmemonicos[0x20] = "JMP";
+    StringMmemonicos[0x21] = "JE";
+    StringMmemonicos[0x22] = "JG";
+    StringMmemonicos[0x23] = "JL";
+    StringMmemonicos[0x24] = "JZ";
+    StringMmemonicos[0x25] = "JP";
+    StringMmemonicos[0x26] = "JN";
+    StringMmemonicos[0x27] = "JNZ";
+    StringMmemonicos[0x28] = "JNP";
+    StringMmemonicos[0x29] = "JNN";
+    StringMmemonicos[0x81] = "SYS";
+    StringMmemonicos[0x8f] = "STOP";
 }
 //CARGA EL VECTOR DE FUNCIONES
 void CargarMnemonicos(T_FUNC *mnemonicos)
 {
-    mnemonicos[1] = &func_MOV;
-    mnemonicos[2] = &func_ADD;
-    mnemonicos[3] = &func_SUB;
-    mnemonicos[4] = &func_MUL;
-    mnemonicos[5] = &func_DIV;
-    mnemonicos[6] = &func_MOD;
-    mnemonicos[19] = &func_CMP;
-    mnemonicos[23] = &func_SWAP;
-    mnemonicos[25] = &func_RND;
-    mnemonicos[49] = &func_AND;
-    mnemonicos[50] = &func_OR;
-    mnemonicos[51] = &func_NOT;
-    mnemonicos[52] = &func_XOR;
-    mnemonicos[55] = &func_SHL;
-    mnemonicos[56] = &func_SHR;
-    mnemonicos[32] = &func_JMP;
-    mnemonicos[33] = &func_JE;
-    mnemonicos[34] = &func_JG;
-    mnemonicos[35] = &func_JL;
-    mnemonicos[36] = &func_JZ;
-    mnemonicos[37] = &func_JP;
-    mnemonicos[38] = &func_JN;
-    mnemonicos[39] = &func_JNZ;
-    mnemonicos[40] = &func_JNP;
-    mnemonicos[41] = &func_JNN;
-    mnemonicos[129] = &func_SYS;
-    mnemonicos[143] = &func_STOP;
+    mnemonicos[0x1] = &func_MOV;
+    mnemonicos[0x2] = &func_ADD;
+    mnemonicos[0x3] = &func_SUB;
+    mnemonicos[0x4] = &func_MUL;
+    mnemonicos[0x5] = &func_DIV;
+    mnemonicos[0x6] = &func_MOD;
+    mnemonicos[0x13] = &func_CMP;
+    mnemonicos[0x17] = &func_SWAP;
+    mnemonicos[0x19] = &func_RND;
+    mnemonicos[0x31] = &func_AND;
+    mnemonicos[0x32] = &func_OR;
+    mnemonicos[0x33] = &func_NOT;
+    mnemonicos[0x34] = &func_XOR;
+    mnemonicos[0x37] = &func_SHL;
+    mnemonicos[0x38] = &func_SHR;
+    mnemonicos[0x20] = &func_JMP;
+    mnemonicos[0x21] = &func_JE;
+    mnemonicos[0x22] = &func_JG;
+    mnemonicos[0x23] = &func_JL;
+    mnemonicos[0x24] = &func_JZ;
+    mnemonicos[0x25] = &func_JP;
+    mnemonicos[0x26] = &func_JN;
+    mnemonicos[0x27] = &func_JNZ;
+    mnemonicos[0x28] = &func_JNP;
+    mnemonicos[0x29] = &func_JNN;
+    mnemonicos[0x81] = &func_SYS;
+    mnemonicos[0x8f] = &func_STOP;
 }
 
 void ModificarCC(TMemoria *memoria, int num)
@@ -352,6 +396,11 @@ void ModificarCC(TMemoria *memoria, int num)
             memoria->REG[CC] = 0x0;
         }
     }
+}
+
+int NumeroSaltoMemoria(int linea)
+{
+    return 3 * (linea - 1);
 }
 
 void func_MOV(TMemoria *memoria, int *arg1, int *arg2)
@@ -380,8 +429,8 @@ void func_DIV(TMemoria *memoria, int *arg1, int *arg2)
 }
 void func_MOD(TMemoria *memoria, int *arg1, int *arg2)
 {
-    ModificarCC(memoria, (*arg1) / (*arg2));
     (*arg1) %= (*arg2);
+    ModificarCC(memoria, (*arg1) / (*arg2));
 }
 void func_CMP(TMemoria *memoria, int *arg1, int *arg2)
 {
@@ -430,86 +479,86 @@ void func_SHR(TMemoria *memoria, int *arg1, int *arg2)
 }
 void func_JMP(TMemoria *memoria, int *arg1, int *arg2)
 {
-    memoria->REG[IP] = (*arg1);
+    memoria->REG[IP] = NumeroSaltoMemoria(*arg1);
 }
 void func_JE(TMemoria *memoria, int *arg1, int *arg2)
 {
     if ((*arg1) == memoria->REG[AX])
     {
-        memoria->REG[IP] = (*arg2);
+        memoria->REG[IP] = NumeroSaltoMemoria(*arg2);
     }
 }
 void func_JG(TMemoria *memoria, int *arg1, int *arg2)
 {
     if ((*arg1) > memoria->REG[AX])
     {
-        memoria->REG[IP] = (*arg2);
+        memoria->REG[IP] = NumeroSaltoMemoria(*arg2);
     }
 }
 void func_JL(TMemoria *memoria, int *arg1, int *arg2)
 {
     if ((*arg1) < memoria->REG[AX])
     {
-        memoria->REG[IP] = (*arg2);
+        memoria->REG[IP] = NumeroSaltoMemoria(*arg2);
     }
 }
 void func_JZ(TMemoria *memoria, int *arg1, int *arg2)
 {
     if ((memoria->REG[CC] & 0xfff1) == 0x0001)
     {
-        memoria->REG[IP] = (*arg1);
+        memoria->REG[IP] = NumeroSaltoMemoria(*arg1);
     }
 }
 void func_JP(TMemoria *memoria, int *arg1, int *arg2)
 {
     if ((memoria->REG[CC] & 0x1fff) == 0x0000)
     {
-        memoria->REG[IP] = (*arg1);
+        memoria->REG[IP] = NumeroSaltoMemoria(*arg1);
     }
 }
 void func_JN(TMemoria *memoria, int *arg1, int *arg2)
 {
     if ((memoria->REG[CC] & 0x1fff) == 0x1000)
     {
-        memoria->REG[IP] = (*arg1);
+        memoria->REG[IP] = NumeroSaltoMemoria(*arg1);
     }
 }
 void func_JNZ(TMemoria *memoria, int *arg1, int *arg2)
 {
     if ((memoria->REG[CC] & 0xfff1) == 0x0000)
     {
-        memoria->REG[IP] = (*arg1);
+        memoria->REG[IP] = NumeroSaltoMemoria(*arg1);
     }
 }
 void func_JNP(TMemoria *memoria, int *arg1, int *arg2)
 {
     if ((memoria->REG[CC] & 0x1fff) == 0x1000 || (memoria->REG[CC] & 0xfff1) == 0x0001)
     {
-        memoria->REG[IP] = (*arg1);
+        memoria->REG[IP] = NumeroSaltoMemoria(*arg1);
     }
 }
 void func_JNN(TMemoria *memoria, int *arg1, int *arg2)
 {
     if ((memoria->REG[CC] & 0x1fff) == 0x0000 || (memoria->REG[CC] & 0xfff1) == 0x0001)
     {
-        memoria->REG[IP] = (*arg1);
+        memoria->REG[IP] = NumeroSaltoMemoria(*arg1);
     }
 }
 char *getNombreDelRegistro(int i)
 {
     switch (i)
     {
-        case 2: return "DS";
-        case 3: return "ES";
-        case 4: return "IP";
-        case 8: return "AC";
-        case 9: return "CC";
-        case 10: return "AX";
-        case 11: return "BX";
-        case 12: return "CX";
-        case 13: return "DX";
-        case 14: return "EX";
-        case 15: return "FX";
+        case 0x2: return "DS";
+        case 0x3: return "ES";
+        case 0x4: return "IP";
+        case 0x8: return "AC";
+        case 0x9: return "CC";
+        case 0xa: return "AX";
+        case 0xb: return "BX";
+        case 0xc: return "CX";
+        case 0xd: return "DX";
+        case 0xe: return "EX";
+        case 0xf: return "FX";
     }
     return '\0';
 }
@@ -521,9 +570,7 @@ void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
     {
         case 1://READ
             {
-                direccion = memoria->REG[DX];
-                if (direccion < memoria->REG[DS])
-                    direccion += memoria->REG[DS];
+                direccion = memoria->REG[DX] + memoria->REG[DS];
 
                 if ((configuracion & 0xf000) == 0x0000)
                     prompt = 1;
@@ -566,10 +613,9 @@ void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
             }
         break;
         case 2://WRITE
+        case 3:
             {
-                direccion = memoria->REG[DX];
-                if (direccion < memoria->REG[DS])
-                    direccion += memoria->REG[DS];
+                direccion = memoria->REG[DX] + memoria->REG[DS];
 
                 if ((configuracion & 0xf000) == 0x0000)
                     prompt = 1;
@@ -585,10 +631,11 @@ void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
                 for (int i = 0; i < memoria->REG[CX]; i++)
                 {
                     if (prompt && (i == 0 || endline))
-                    MostrarDireccion(10, memoria->REG[DX] + i, -1, 4);
-                        //printf("[%08d]: ", (memoria->REG[DX] + i));
+                        MostrarDireccion((endline)? 16:10, memoria->REG[DX] + i, -1, 4);
+
 
                     if (caracter)
+                    {
                         if (memoria->RAM[direccion + i] < 255)
                         {
                             printf("%c", memoria->RAM[direccion + i]);
@@ -597,6 +644,7 @@ void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
                         }
                         else
                             printf(". ");
+                    }
 
                     if ((configuracion & 0x0008) == 0x0008)
                         printf("%%%x ", memoria->RAM[direccion + i]);
@@ -608,37 +656,28 @@ void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
                     if (endline)
                         printf("\n");
                 }
-            }
-        break;
-        case 3://DUMP
-            {
-                if ((configuracion & 0xf000) == 0x0000)
-                    prompt = 1;
 
-                if ((configuracion & 0x0f00) == 0x0000)
-                    endline = 1;
-
-                if ((configuracion & 0x00f0) == 0x0010)
-                    caracter = 1;
-
-                for (int i = 0; i < 16; i++)
+                if ((int)(*arg1) == 3)//DUMP
                 {
-                    if ((i > 1 && i < 5)||(i > 7))
+                    for (int i = 0; i < 16; i++)
                     {
-                        if (prompt && (i == 0 || endline))
-                            printf("[%s]: ", getNombreDelRegistro(i));
+                        if ((i > 1 && i < 5)||(i > 7))
+                        {
+                            if (prompt && (i == 0 || endline))
+                                printf("[%s]: ", getNombreDelRegistro(i));
 
-                        if (caracter)
-                            printf("%c ", memoria->REG[i]);
+                            if (caracter)
+                                printf("%c ", memoria->REG[i]);
 
-                        if ((configuracion & 0x0008) == 0x0008)
-                            printf("%%%04x ", memoria->REG[i]);
-                        if ((configuracion & 0x0004) == 0x0004)
-                            printf("@%04o ", memoria->REG[i]);
-                        if ((configuracion & 0x0001) == 0x0001)
-                            printf("%04d", memoria->REG[i]);
-                        if (endline)
-                            printf("\n");
+                            if ((configuracion & 0x0008) == 0x0008)
+                                printf("%%%04x ", memoria->REG[i]);
+                            if ((configuracion & 0x0004) == 0x0004)
+                                printf("@%04o ", memoria->REG[i]);
+                            if ((configuracion & 0x0001) == 0x0001)
+                                printf("%04d", memoria->REG[i]);
+                            if (endline)
+                                printf("\n");
+                        }
                     }
                 }
             }
