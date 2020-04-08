@@ -1,0 +1,20 @@
+# depslib dependency file v1.0
+1585426923 source:c:\users\usuario\documents\facultad\arquitectura de computadoras\traductor\main.c
+	<stdio.h>
+	<string.h>
+	<ctype.h>
+
+1586360029 source:d:\internet\descargas\_basura\arqcomp_tp-master\arqcomp_tp-master\traductor\main.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<ctype.h>
+	<conio.h>
+
+1586370710 source:c:\users\franc\desktop\maquina virtual\proyecto\traductor\main.c
+	<stdio.h>
+	<stdlib.h>
+	<string.h>
+	<ctype.h>
+	<conio.h>
+

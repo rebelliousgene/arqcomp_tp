@@ -307,10 +307,13 @@ void EjecutarInstruccion(TMemoria *memoria, T_FUNC* mnemonicos, int tMnemonico, 
         case 1: memoria->REG[Oper1] = arg1; break;
         case 2: memoria->RAM[Oper1] = arg1;
     }
-    switch (tOper2)
+    if (tMnemonico == 0x17)//SWAP
     {
-        case 1: memoria->REG[Oper2] = arg2; break;
-        case 2: memoria->RAM[Oper2] = arg2;
+        switch (tOper2)
+        {
+            case 1: memoria->REG[Oper2] = arg2; break;
+            case 2: memoria->RAM[Oper2] = arg2;
+        }
     }
 }
 //EJECUTA EL CODIGO A PARTIR DE LOS DATOS DE LA RAM Y EL REG
