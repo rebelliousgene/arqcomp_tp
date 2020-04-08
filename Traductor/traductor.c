@@ -132,7 +132,7 @@ int comparaCodigos(char *pInstruccion, char mnem[][5])
 
 int siEsRegistro(char *op, Registro registros[])
 {
-    int i = 10;
+    int i = 0;
     int enc=-1;
     while (i < 16 && strcmp(op,registros[i].nom) != 0)
     {
@@ -159,7 +159,7 @@ int siEsRotulo(char *op, Rotulo v[], int cantR)
 }
 
 
-int devOperando(int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo vecRotulos[], int cantR) ///modifico tipo y devuelvo los 32 bits codOP
+int devOperando(int *mal,int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo vecRotulos[], int cantR) ///modifico tipo y devuelvo los 32 bits codOP
 {
     long int entero=0; ///para conversiones;
     int reg;
@@ -203,6 +203,7 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo
                     }
                     else
                     {
+                        *mal=1;
                         codOP=0xFFFFFFFF;
                     }
                 }
@@ -210,6 +211,11 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo
             else
             {
                 *tipo=0;
+                if (strchr(op,39))
+                {
+                    entero = atoi(++op);
+                    codOP = entero;
+                }
                 if (strchr(op,'@')) ///si es octal
                 {
                     entero = strtoul(++op,&trash,8);
@@ -235,6 +241,7 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo
                     j=siEsRotulo(op,vecRotulos,cantR);
                     if(j == -1 || vecRotulos[j].linea == -1)
                     {
+                        *mal =1;
                         codOP= 0xFFFFFFFF;
                     }
                     else
@@ -242,6 +249,7 @@ int devOperando(int *tipo,char *op, Registro registros[], int indiceMNEM, Rotulo
                 }
                 else
                 {
+                    *mal = 1;
                     codOP=0xFFFFFFFF;
                 }
 
@@ -304,6 +312,7 @@ tipoInst corteDatos(Rotulo rotulos[], int cantR, char *pInstruccion, char mnem[]
     ins.codIns= 0;
     ins.CODop1= 0;
     ins.CODop2 = 0;
+    int mal=0;
     int tipoOP1, tipoOP2;
     tipoOP1=0;
     tipoOP2=0;
@@ -321,16 +330,16 @@ tipoInst corteDatos(Rotulo rotulos[], int cantR, char *pInstruccion, char mnem[]
             if (operando1)
             operando2= strtok(NULL," \0");
 
-            codOP1=devOperando(&tipo,operando1,registros,indice,rotulos,cantR); /// devuelve los codigos de operando 1 de 32 bits
+            codOP1=devOperando(&mal,&tipo,operando1,registros,indice,rotulos,cantR); /// devuelve los codigos de operando 1 de 32 bits
             tipoOP1=tipo;
-            codOP2=devOperando(&tipo,operando2,registros,indice,rotulos,cantR);/// devuelve los codigos de operando 2 de 32 bits
+            codOP2=devOperando(&mal,&tipo,operando2,registros,indice,rotulos,cantR);/// devuelve los codigos de operando 2 de 32 bits
             tipoOP2=tipo;
         }
     }
     else
         pInstruccion=NULL;
 
-    if (pInstruccion && indice != -1 && codOP1 != 0xFFFFFFFF && codOP2 != 0xFFFFFFFF  && tipo != 0xFFFFFFFF) /// si no hay errores
+    if (pInstruccion && indice != -1 && (mal ==0) && tipo != 0xFFFFFFFF) /// si no hay errores
     {
         ins.codIns= indice;
         ins.codIns = (ins.codIns<<16) | (tipoOP1 << 8) | tipoOP2;
@@ -364,7 +373,7 @@ int lecturaRotulos(char *asmNOM, Rotulo vecRotulos[]) ///LEE LOS ROTULOS A LO LA
 {
     FILE *archASM=fopen(asmNOM,"rt");
     char *assembler = (char*)malloc(sizeof(char)*128);
-    int nLinea=1; ///Lineas de instrucción
+    int nLinea=0; ///Lineas de instrucción
     Rotulo r;
     char *pCadena=NULL;
     char *pRenglon= (char*)malloc(sizeof(char)*128);
@@ -552,7 +561,6 @@ void copiaraIMG(int RAM[2000], Registro reg[], char *nomIMG)
     int i=0;
     if (archIMG)
     {
-
         while (i < 16)
         {
             fwrite(&(reg[i].valor),sizeof(int),1,archIMG);

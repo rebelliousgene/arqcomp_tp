@@ -616,10 +616,11 @@ void func_SYS(TMemoria *memoria, int *arg1, int *arg2)
                             MostrarDireccion(10, memoria->REG[DX] + i, -1, 4);
                             //printf("[%08d]: ", (memoria->REG[DX]));
                         }
+                        fflush(stdin);
                         if ((configuracion & 0x0008) == 0x0008)
-                            scanf("%x ", &memoria->RAM[direccion + i]);
+                            scanf("%x", &memoria->RAM[direccion + i]);
                         if ((configuracion & 0x0004) == 0x0004)
-                            scanf("%o ", &memoria->RAM[direccion + i]);
+                            scanf("%o", &memoria->RAM[direccion + i]);
                         if ((configuracion & 0x0001) == 0x0001)
                             scanf("%d", &memoria->RAM[direccion + i]);
 
